@@ -1,6 +1,8 @@
 import requests
 from bs4 import BeautifulSoup as bs
-def get_rss_articles(query, count=3):
+
+
+def get_rss_articles(query, count):
     rss_url = f"https://news.google.com/rss/search?q={query}"
     response = requests.get(rss_url)
     soup = bs(response.content, "xml")
@@ -26,6 +28,8 @@ def get_rss_articles(query, count=3):
 
     return articles
 
+
 query = input("Enter a keyword: ")
-news = get_rss_articles(query)
+count = int(input("Enter number of articles you want: "))
+news = get_rss_articles(query, count)
 print(news)
