@@ -15,16 +15,27 @@ def get_rss_articles(query, count):
         link = item.link.text
 
         try:
-            article_response = requests.get(link, timeout=5)
+            headers = {"User-Agent": "Mozilla/5.0"}
+            redirect_response = requests.get(link, headers=headers, timeout=5, allow_redirects=True)
+            real_url = redirect_response.url
+
+            article_response = requests.get(real_url, headers=headers, timeout=5)
             article_soup = bs(article_response.content, "html.parser")
 
-            # Try to extract the content — naive approach
-            paragraphs = article_soup.find_all("title")
-            text = " ".join(p.text for p in paragraphs)
+            article_tag = article_soup.find("article")
+            if article_tag:
+                text = article_tag.get_text(separator=" ", strip=True)
+            else:
+                paragraphs = article_soup.find_all("p")
+                text = " ".join(p.text for p in paragraphs[:5]) or "No content found"
         except Exception as e:
             text = f"Failed to fetch content: {e}"
 
-        articles.append({"title": title, "link": link, "content": text})
+        articles.append({
+            "title": title,
+            "link": real_url,
+            "content": text
+        })
 
     return articles
 
