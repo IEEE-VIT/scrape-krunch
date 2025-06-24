@@ -19,7 +19,7 @@ def get_rss_articles(query, count):
             article_soup = bs(article_response.content, "html.parser")
 
             # Try to extract the content — naive approach
-            paragraphs = article_soup.find_all("p")
+            paragraphs = article_soup.find_all("title")
             text = " ".join(p.text for p in paragraphs)
         except Exception as e:
             text = f"Failed to fetch content: {e}"
