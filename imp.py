@@ -19,15 +19,15 @@ def get_stuff():
         print(item.find_next("p").text if item.find_next("p") else "no para ")
         
         
-    response: ChatResponse = chat(model='llama3.2', messages=[
-    {
-        'role': 'user',
-        'content': f"Summarize this : {para[2].text}",
-    },
+        response: ChatResponse = chat(model='llama3.2', messages=[
+        {
+            'role': 'user',
+            'content': f"Summarize this : {para[2].text}",
+        },
     ])
-    print("\n\n\n\n\n\n\n\n")
-    print(response['message']['content'])
-    print(response.message.content)
+        print("\n\n\n\n\n\n\n\n")
+        print(response['message']['content'])
+        print(response.message.content)
 
     # print("items\n")
     # for item in headings:
@@ -36,7 +36,6 @@ def get_stuff():
     #     print(h.text)
 
 
-    print(os.cpu_count())
 
 get_stuff()
     # or access fields directly from the response object
