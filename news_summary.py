@@ -30,12 +30,11 @@ def get_rss_articles(query, count):
             redirect_response = requests.get(link, headers=headers, timeout=5, allow_redirects=True)
             real_url = redirect_response.url
 
-            # ✅ Extract clean article content using newspaper3k
             text = extract_clean_article(real_url)
 
         except Exception as e:
             text = f"Failed to fetch content: {e}"
-            real_url = link  # fallback to original link if redirect fails
+            # real_url = link  # fallback to original link if redirect fails
 
         articles.append({
             "title": title,
@@ -47,11 +46,11 @@ def get_rss_articles(query, count):
 
 
 
-query = "finance"
+query = input("Enter a keyword")
 article_data = get_rss_articles(query, count=3)
 
 # 🟩 Print the articles
 for article in article_data:
-    print(f"\n📰 {article['title']}")
-    print(f"🔗 {article['link']}")
-    print(f"📄 {article['content'][:600]}...\n")
+    print(f"\n {article['title']}")
+    print(f" {article['link']}")
+    print(f" {article['content'][:600]}...\n")
