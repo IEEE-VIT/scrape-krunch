@@ -1,5 +1,16 @@
 import requests
 from bs4 import BeautifulSoup as bs
+from newspaper import Article
+
+
+def extract_clean_article(url):
+    try:
+        article = Article(url)
+        article.download()
+        article.parse()
+        return article.text
+    except Exception as e:
+        return f"Failed to extract clean article: {e}"
 
 
 def get_rss_articles(query, count):
@@ -12,24 +23,19 @@ def get_rss_articles(query, count):
 
     for item in items:
         title = item.title.text
-        link = item.link.text
+        link = item.link.text.strip()
 
         try:
             headers = {"User-Agent": "Mozilla/5.0"}
             redirect_response = requests.get(link, headers=headers, timeout=5, allow_redirects=True)
             real_url = redirect_response.url
 
-            article_response = requests.get(real_url, headers=headers, timeout=5)
-            article_soup = bs(article_response.content, "html.parser")
+            # ✅ Extract clean article content using newspaper3k
+            text = extract_clean_article(real_url)
 
-            article_tag = article_soup.find("article")
-            if article_tag:
-                text = article_tag.get_text(separator=" ", strip=True)
-            else:
-                paragraphs = article_soup.find_all("p")
-                text = " ".join(p.text for p in paragraphs[:5]) or "No content found"
         except Exception as e:
             text = f"Failed to fetch content: {e}"
+            real_url = link  # fallback to original link if redirect fails
 
         articles.append({
             "title": title,
@@ -40,7 +46,12 @@ def get_rss_articles(query, count):
     return articles
 
 
-query = input("Enter a keyword: ")
-count = int(input("Enter number of articles you want: "))
-news = get_rss_articles(query, count)
-print(news)
+
+query = "finance"
+article_data = get_rss_articles(query, count=3)
+
+# 🟩 Print the articles
+for article in article_data:
+    print(f"\n📰 {article['title']}")
+    print(f"🔗 {article['link']}")
+    print(f"📄 {article['content'][:600]}...\n")
