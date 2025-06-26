@@ -3,9 +3,13 @@ from bs4 import BeautifulSoup as bs
 import time
 from ollama import chat
 from ollama import ChatResponse
+from duckduckgo_search import DDGS
+
 
 def get_stuff():
     processed_articles = set()
+
+
     
     html = requests.get("https://idrw.org/") 
     # incorporate userinput here which is then feeded to the browser
@@ -61,5 +65,30 @@ def get_stuff():
         # time.sleep(1)
 
 
-if __name__ == "__main__":
-    get_stuff()
+def search_duckduckgo(query, max_results=10):
+    with DDGS() as ddgs:
+        results = list(ddgs.text(query, max_results=max_results))
+        return results
+
+results = search_duckduckgo(input("Enter your search query: "), max_results=5)
+for result in results:
+    print(f"Title: {result['title']}")
+    print(f"URL: {result['href']}")
+    print(f"Body: {result['body']}")
+    print("----------")
+    response: ChatResponse = chat(model='llama3.2', messages=[
+                    {
+                        'role': 'user',
+                        'content': f"Summarize this  and also give your thoughts on this : {result['body']}",
+                    },
+                ])
+                
+    print("\n\n\n\n\n")
+    print("summary:")
+    print(response.message.content)
+    print("\n\n\n\n\n\n")
+
+
+# if __name__ == "__main__":
+    # get_stuff()
+
