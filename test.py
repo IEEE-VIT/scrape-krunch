@@ -59,8 +59,7 @@ Given a news article, respond with the following format:
         except Exception as e:
             print(f"dunno what happened: {e}")
 
-        # optional delay to avoid ip block
-        # time.sleep(1)
+        time.sleep(1)
 
 
 if __name__ == "__main__":
