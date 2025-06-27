@@ -1,30 +1,69 @@
-# 📰 LLM-Powered News Analyzer
+# 📰 News Analyzer with LLM Summarization
 
-This Python script scrapes the latest news articles and uses a locally running LLM (via [Ollama](https://ollama.com)) to provide insightful summaries, sentiment analysis, and potential global impacts of each article.
+This project scrapes the latest news articles from various domains like **Business**, **Technology**, **Health**, **Sports**, **Entertainment**, and even **Reddit posts**—then feeds them into a locally running **LLM (via Ollama)** to generate a detailed analysis.
 
----
+## 🚀 Features
 
-## 🔍 Features
+- 🔍 Scrapes latest headlines from:
+  - [Business Today](https://www.businesstoday.in)
+  - [TechCrunch](https://techcrunch.com)
+  - [ESPN](https://espn.com)
+  - [Healthline](https://www.healthline.com)
+  - [Variety](https://variety.com)
+  - Reddit (via Reddit's JSON API)
 
-- ✅ Web scraping using `requests` and `BeautifulSoup`
-- ✅ Summarization of news articles using a local LLM
-- ✅ Sentiment analysis of each article
-- ✅ Socio-economic, political, and stock market impact predictions
-- ✅ Automatically avoids duplicates and includes a delay to prevent IP bans
+- 💬 Uses **Ollama + LLaMA 3** locally for:
+  - Summarization  
+  - Sentiment analysis  
+  - Socio-economic, political & stock market impact evaluation
 
----
+- ⚙️ Clean command-line interface for selecting the type of news  
+- ⏱️ Supports rate limiting with `time.sleep()`  
+- 🔗 Extracts full article content when possible  
 
-## 🧠 Example Output
+## 🧠 LLM Prompt
 
-```text
-Scraped heading 1: India test-fires Agni-V missile
+The LLM receives a prompt like:
 
-Scraped content: India successfully test-fired the nuclear-capable Agni-V missile...
+You are a global news analyst.
+Given a news article, respond with the following format:
 
---- LLM Response ---
+    Summary: ...
 
-1. Summary: India conducted a successful test of the Agni-V nuclear-capable ballistic missile, marking a strategic milestone.
-2. Sentiment: Positive
-3. Socio-economic Impact: Boosts defense R&D and indigenous capabilities.
-4. Political Impact: Reinforces India's strategic posture in Asia-Pacific.
-5. Stock Market Impact: May positively influence defense sector stocks.
+    Sentiment: Positive / Negative / Neutral
+
+    Socio-economic Impact: ...
+
+    Political Impact: ...
+
+    Stock Market Impact: ...
+
+
+## 📦 Requirements
+
+- Python 3.8+
+- [Ollama](https://ollama.com) installed and running
+- Model (e.g., `llama3.2`) pulled via `ollama run llama3`
+
+Install Python dependencies:
+pip install requests beautifulsoup4
+
+
+## ▶️ How to Run
+
+1. Make sure Ollama is installed and running:  
+   `ollama run llama3`
+
+2. Install required Python packages:  
+   `pip install requests beautifulsoup4`
+
+3. Run the script:  
+
+4. Follow the prompt to choose a category (1–6) and get LLM-based analysis.
+
+## Future Scope
+1. Cloud Deployment
+2. Cache Previous articles
+4. Buy/Sell/Hold sentiment catagories based on NIFTY50 and S&P500 using financial news data.
+5. Add tickers manually or let users input a company name for financial news. 
+
