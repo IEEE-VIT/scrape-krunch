@@ -221,7 +221,7 @@ def extract_sports_content(url):
         return f"Error: {e}"
 
 def get_health_articles(count=5):
-    url = "https://www.healthline.com/news"
+    url = "https://www.healthline.com/health-news"
     headers = {"User-Agent": "Mozilla/5.0"}
     response = requests.get(url, headers=headers)
     soup = BeautifulSoup(response.text, "html.parser")
@@ -259,7 +259,9 @@ def extract_health_content(url):
         return f"Error: {e}"
 
 def get_entertainment_articles(count=5):
-    url = "https://variety.com/latest/"
+    # url = "https://variety.com/latest/"
+    # url="https://www.tmz.com/"
+    url="https://idrw.org"
     headers = {"User-Agent": "Mozilla/5.0"}
     response = requests.get(url, headers=headers)
     soup = BeautifulSoup(response.text, "html.parser")
@@ -283,7 +285,7 @@ def extract_entertainment_content(url):
         response = requests.get(url, headers=headers, timeout=10)
         soup = BeautifulSoup(response.text, "html.parser")
         
-        article_div = soup.find("div", class_="pmc-paywall") or soup.find("div", class_="article-wrap")
+        article_div = soup.find("div", class_="wp-block-image") or soup.find("p")
         
         if article_div:
             paragraphs = article_div.find_all("p")
@@ -319,7 +321,7 @@ def main():
     print("2. Technology  ")
     print("3. Sports  ")
     print("4. Health  ")
-    print("5. Entertainment  ")
+    print("5. defence  ")
     
     choice = input(" choose (1-5): ").strip()
     
@@ -340,7 +342,7 @@ def main():
         articles = get_health_articles(count=5)
         extract_func = extract_health_content
     elif choice == "5":
-        print("Scraping Entertainment  articles...")
+        print("Scraping defence  articles...")
         articles = get_entertainment_articles(count=5)
         extract_func = extract_entertainment_content
     else:

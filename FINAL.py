@@ -461,7 +461,7 @@ def get_stuff():
                     response: ChatResponse = chat(model='llama3.2', messages=[
                         {
                             'role': 'system',
-                            'content': """summarize the article and provide insights on its impact 
+                            'content': """summarize the defence article and provide insights on its impact on the present state of global politics and any future impacts it can have on INDIA
         """,
                         },
                         {
@@ -482,7 +482,7 @@ def get_stuff():
 def main():
     print("Select content type to scrape and summarize:")
     print("1. Business  ")
-    print("2. Technology  (")
+    print("2. Technology [wip]")
     print("3. Sports  ")
     print("4. Health  ")
     print("5. DEFENCE ")
