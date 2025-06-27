@@ -389,7 +389,12 @@ def analyze_with_llm(title, content):
         response: ChatResponse = chat(model='llama3.2', messages=[
             {
                 'role': 'system',
-                'content': """You are a global news analyst. Given a news article, respond with the following format: 1. Summary: ... 2. Sentiment: Positive / Negative / Neutral 3. Socio-economic Impact: ... 4. Political Impact: ... 5. Stock Market Impact: ... """,
+                'content': """You are a global news analyst. Given a news article, respond with the following format:
+                 1. Summary: ... 
+                 2. Sentiment: Positive / Negative / Neutral 
+                 3. Socio-economic Impact: ... 
+                 4. Political Impact: ... 
+                 5. Stock Market Impact: ... """,
             },
             {
                 'role': 'user',
