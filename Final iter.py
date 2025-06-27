@@ -624,7 +624,7 @@ def analyze_with_llm(title, content):
 def main():
     print(" content type to scrape and summarize:")
     print("1. Business  ")
-    print("2. Technology  (")
+    print("2. Technology  ")
     print("3. Sports  ")
     print("4. Health  ")
     print("5. Entertainment ")
