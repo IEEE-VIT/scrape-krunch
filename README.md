@@ -12,7 +12,7 @@ This project scrapes the latest news articles from various domains like **Busine
   - [Variety](https://variety.com)
   - Reddit (via Reddit's JSON API)
 
-- 💬 Uses **Ollama + LLaMA 3** locally for:
+- 💬 Uses **Ollama + LLaMA 3.2** locally for:
   - Summarization  
   - Sentiment analysis  
   - Socio-economic, political & stock market impact evaluation
@@ -43,7 +43,7 @@ Given a news article, respond with the following format:
 
 - Python 3.8+
 - [Ollama](https://ollama.com) installed and running
-- Model (e.g., `llama3.2`) pulled via `ollama run llama3`
+- Model (e.g., `llama3.2`) pulled via `ollama run llama3.2`
 
 Install Python dependencies:
 pip install requests beautifulsoup4
@@ -52,7 +52,7 @@ pip install requests beautifulsoup4
 ## ▶️ How to Run
 
 1. Make sure Ollama is installed and running:  
-   `ollama run llama3`
+   `ollama run llama3.2`
 
 2. Install required Python packages:  
    `pip install requests beautifulsoup4`
