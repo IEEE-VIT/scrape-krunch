@@ -487,7 +487,9 @@ def get_stuff():
             response: ChatResponse = chat(model='llama3.2', messages=[
                 {
                     'role': 'system',
-                    'content': """summarize the defence article and provide insights on its impact on the present state of global politics and any future impacts it can have on INDIA
+                    'content': """summarize the defence article and provide
+                     insights on its impact on the present state of global politics
+                     and any future impacts it can have on INDIA
         """,
                 },
                 {
