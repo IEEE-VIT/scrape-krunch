@@ -518,19 +518,19 @@ def main():
 
     if choice == "1":
         print("fetching  Business  articles...")
-        articles = get_article_links(count=1)
+        articles = get_article_links()
         extract_func = extract_article_content
     elif choice == "2":
         print("fetching  Technology  articles...")
-        articles = get_tech_articles(count=1)
+        articles = get_tech_articles()
         extract_func = extract_tech_content
     elif choice == "3":
         print(" fetching  Sports  articles...")
-        articles = get_sports_articles(count=1)
+        articles = get_sports_articles()
         extract_func = extract_sports_content
     elif choice == "4":
         print("fetching  Health  articles...")
-        articles = get_health_articles(count=1)
+        articles = get_health_articles()
         extract_func = extract_health_content
     elif choice == "5":
         get_stuff()
