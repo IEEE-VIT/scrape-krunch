@@ -11,7 +11,7 @@ def search_duckduckgo(query, max_results=10):
     return reddit_results
 
 
-def get_article_links(count=1):
+def get_article_links(count=3):
     try:
         query = "latest buissness news 2025"
         print(f"biz articles getting..")
@@ -48,14 +48,14 @@ def get_article_links(count=1):
         return get_fallback_business_news(count)
 
 
-def get_fallback_business_news(count=1):
+def get_fallback_business_news(count=3):
     return [{
         "title": "Business News: Global Markets Show Mixed Performance Amid Economic Uncertainty",
         "link": "https://example.com/business-news"
     }]
 
 
-def get_bbc_business_articles(count=1):
+def get_bbc_business_articles(count=3):
     url = "https://www.bbc.com/business"
     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
 
@@ -122,7 +122,7 @@ def extract_article_content(url):
         return f"Error extracting content: {e}"
 
 
-def get_tech_articles(count=1):
+def get_tech_articles(count=3):
     url = "https://techcrunch.com/latest/"
     headers = {"User-Agent": "Mozilla/5.0"}
     response = requests.get(url, headers=headers)
@@ -161,7 +161,7 @@ def extract_tech_content(url):
         return f"Error: {e}"
 
 
-def get_sports_articles(count=1):
+def get_sports_articles(count=3):
     url = "https://www.espn.com/sports/"
     headers = {"User-Agent": "Mozilla/5.0"}
     response = requests.get(url, headers=headers)
@@ -201,7 +201,7 @@ def extract_sports_content(url):
         return f"Error: {e}"
 
 
-def get_health_articles(count=1):
+def get_health_articles(count=3):
     url = "https://www.healthline.com/health-news"
     headers = {"User-Agent": "Mozilla/5.0"}
     response = requests.get(url, headers=headers)
@@ -241,7 +241,7 @@ def extract_health_content(url):
         return f"Error: {e}"
 
 
-def get_entertainment_articles(count=1):
+def get_entertainment_articles(count=3):
     url = "https://variety.com/latest/"
     headers = {"User-Agent": "Mozilla/5.0"}
     response = requests.get(url, headers=headers)
