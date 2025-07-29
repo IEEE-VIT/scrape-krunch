@@ -1,0 +1,96 @@
+Project Title: News & Reddit Analyzer with LLM
+
+Overview:
+This Python script builds a local news analysis engine that:
+- Scrapes articles from major domains (BBC, TechCrunch, ESPN, etc.)
+- Scrapes Reddit posts and their comments (Work in Progress)
+- Extracts article content using BeautifulSoup
+- Uses a locally hosted LLM (Ollama) to generate structured analysis on:
+    - Summary
+    - Sentiment
+    - Socio-Economic & Political Impact
+    - Stock Market Implication
+- Integrates DuckDuckGo search for discovering new articles dynamically
+
+---
+
+Modules and Functions:
+
+1. search_duckduckgo(query, max_results)
+   - Uses DuckDuckGo to fetch links for a given query.
+   - Helps identify articles from high-trust news sources.
+
+2. get_article_links(count)
+   - Finds business articles using DuckDuckGo.
+   - Prioritizes finance sites like Bloomberg, Reuters, etc.
+   - Falls back to static example data if necessary.
+
+3. get_bbc_business_articles(count)
+   - Scrapes BBC’s business section for articles.
+
+4. get_tech_articles(count)
+   - Scrapes latest tech news from TechCrunch.
+
+5. get_sports_articles(count)
+   - Extracts sports headlines from ESPN.
+
+6. get_health_articles(count)
+   - Collects health-related news from Healthline.
+
+7. get_entertainment_articles(count)
+   - Pulls entertainment news from Variety.
+
+8. extract_article_content(url)
+   - General-purpose extractor for business and finance news.
+   - Site-specific logic for BBC, Reuters, etc.
+
+9. extract_tech_content(url)
+   - Content extractor for TechCrunch.
+
+10. extract_sports_content(url)
+    - Extracts ESPN article bodies.
+
+11. extract_health_content(url)
+    - Healthline content extractor.
+
+12. get_stuff()
+    - Scrapes defense articles from idrw.org.
+    - Includes LLM summarization for geopolitical insight.
+
+13. get_reddit_posts(query, count)
+    - Scrapes Reddit posts using the public JSON endpoint.
+    - Returns title, text, subreddit, score, and permalink.
+
+14. extract_reddit_content(post)
+    - Returns post body or fallback message.
+
+15. get_reddit_comments(post_url, max_comments)
+    - Fetches top-level comments from a Reddit thread.
+
+16. fetch_comments_continuously(post_url)
+    - Continuously fetches Reddit comments in real-time.
+    - Interrupted via Ctrl+C.
+
+17. analyze_with_llm(title, content)
+    - Sends article to LLM for analysis.
+    - Structured output includes sentiment, market & political impact.
+
+18. analyze_reddit_discussion(title, combined_content)
+    - Sends Reddit post + comments to LLM for deeper insight.
+
+19. main()
+    - Console UI for selecting:
+        1. Business News
+        2. Tech News
+        3. Sports News
+        4. Health News
+        5. Defense (idrw.org)
+        6. Reddit Discussion
+    - Extracts, displays preview, sends to LLM, shows analysis.
+
+---
+
+Requirements:
+- Python 3.8+
+- Modules: `requests`, `beautifulsoup4`, `ollama`, `duckduckgo_search`
+- Ollama must be running with model (e.g., llama3.2)
