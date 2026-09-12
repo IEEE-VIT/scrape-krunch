@@ -5,6 +5,19 @@ import time
 from duckduckgo_search import DDGS as ddgs
 from article_cache import ArticleCache
 
+# Shared browser-like headers for all outbound HTTP requests (anti-bot sites
+# often 403 bare Python-urllib User-Agents).
+DEFAULT_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/120.0.0.0 Safari/537.36"
+    ),
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9",
+}
+
+
 #CACHE_LIMIT = 5
 #max size set to low number for testing needs below, else, default is set at 50
 article_cache = ArticleCache("""max_size = CACHE_LIMIT""")
@@ -71,7 +84,7 @@ def get_fallback_business_news(count=3):
 
 def get_bbc_business_articles(count=3):
     url = "https://www.bbc.com/business"
-    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+    headers = DEFAULT_HEADERS
 
     try:
         response = requests.get(url, headers=headers, timeout=10)
@@ -107,7 +120,7 @@ def get_bbc_business_articles(count=3):
 
 
 def extract_article_content(url):
-    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+    headers = DEFAULT_HEADERS
 
     try:
         response = requests.get(url, headers=headers, timeout=10)
@@ -144,7 +157,7 @@ def extract_article_content(url):
 
 def get_tech_articles(count=3):
     url = "https://techcrunch.com/latest/"
-    headers = {"User-Agent": "Mozilla/5.0"}
+    headers = DEFAULT_HEADERS
     response = requests.get(url, headers=headers)
     soup = BeautifulSoup(response.text, "html.parser")
 
@@ -167,7 +180,7 @@ def get_tech_articles(count=3):
 
 
 def extract_tech_content(url):
-    headers = {"User-Agent": "Mozilla/5.0"}
+    headers = DEFAULT_HEADERS
     try:
         response = requests.get(url, headers=headers, timeout=10)
         soup = BeautifulSoup(response.text, "html.parser")
@@ -189,7 +202,7 @@ def extract_tech_content(url):
 
 def get_sports_articles(count=3):
     url = "https://www.espn.com/sports/"
-    headers = {"User-Agent": "Mozilla/5.0"}
+    headers = DEFAULT_HEADERS
     response = requests.get(url, headers=headers)
     soup = BeautifulSoup(response.text, "html.parser")
 
@@ -215,7 +228,7 @@ def get_sports_articles(count=3):
 
 
 def extract_sports_content(url):
-    headers = {"User-Agent": "Mozilla/5.0"}
+    headers = DEFAULT_HEADERS
     try:
         response = requests.get(url, headers=headers, timeout=10)
         soup = BeautifulSoup(response.text, "html.parser")
@@ -235,7 +248,7 @@ def extract_sports_content(url):
 
 def get_health_articles(count=3):
     url = "https://www.healthline.com/health-news"
-    headers = {"User-Agent": "Mozilla/5.0"}
+    headers = DEFAULT_HEADERS
     response = requests.get(url, headers=headers)
     soup = BeautifulSoup(response.text, "html.parser")
 
@@ -261,7 +274,7 @@ def get_health_articles(count=3):
 
 
 def extract_health_content(url):
-    headers = {"User-Agent": "Mozilla/5.0"}
+    headers = DEFAULT_HEADERS
     try:
         response = requests.get(url, headers=headers, timeout=10)
         soup = BeautifulSoup(response.text, "html.parser")
@@ -281,7 +294,7 @@ def extract_health_content(url):
 
 def get_entertainment_articles(count=3):
     url = "https://variety.com/latest/"
-    headers = {"User-Agent": "Mozilla/5.0"}
+    headers = DEFAULT_HEADERS
     response = requests.get(url, headers=headers)
     soup = BeautifulSoup(response.text, "html.parser")
 
@@ -308,7 +321,7 @@ def get_entertainment_articles(count=3):
 def get_stuff():
     processed_articles = set()
 
-    html = requests.get("https://idrw.org/")
+    html = requests.get("https://idrw.org/", headers=DEFAULT_HEADERS, timeout=10)
     soup = BeautifulSoup(html.text, "html.parser")
     articles = soup.find_all("article")
 
@@ -345,7 +358,7 @@ def get_stuff():
 
 def get_reddit_posts(query, count=7):
     search_url = f"https://www.reddit.com/search.json?q={query}&sort=hot&limit={count}"
-    headers = {"User-Agent": "Mozilla/5.0"}
+    headers = DEFAULT_HEADERS
 
     try:
         response = requests.get(search_url, headers=headers)
@@ -380,7 +393,7 @@ def extract_reddit_content(post):
 
 
 def get_reddit_comments(post_url, max_comments=50):
-    headers = {"User-Agent": "Mozilla/5.0"}
+    headers = DEFAULT_HEADERS
 
     try:
         json_url = post_url.rstrip('/') + '.json'
@@ -502,7 +515,7 @@ Be concise but thorough, focusing on the most interesting and relevant aspects o
 def get_stuff():
     processed_articles = set()
 
-    html = requests.get("https://idrw.org/")
+    html = requests.get("https://idrw.org/", headers=DEFAULT_HEADERS, timeout=10)
     soup = BeautifulSoup(html.text, "html.parser")
     articles = soup.find_all("article")
 
