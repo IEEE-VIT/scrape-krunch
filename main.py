@@ -4,6 +4,7 @@ from ollama import chat, ChatResponse
 import time
 from duckduckgo_search import DDGS as ddgs
 from article_cache import ArticleCache
+from text_utils import clean_extracted_text
 
 #CACHE_LIMIT = 5
 #max size set to low number for testing needs below, else, default is set at 50
@@ -119,7 +120,7 @@ def extract_article_content(url):
             if article_div:
                 paragraphs = article_div.find_all("p")
                 content = "\n".join(p.get_text(strip=True) for p in paragraphs)
-                return content.strip() if content else "Empty article body."
+                return clean_extracted_text(content) if content else "Empty article body."
 
         elif "bbc.com" in url:
             article_div = soup.find("div", {"data-component": "text-block"}) or soup.find("div", class_="story-body")
@@ -129,12 +130,12 @@ def extract_article_content(url):
             if article_div:
                 paragraphs = article_div.find_all("p")
                 content = "\n".join(p.get_text(strip=True) for p in paragraphs)
-                return content.strip() if content else "Empty article body."
+                return clean_extracted_text(content) if content else "Empty article body."
 
         paragraphs = soup.find_all("p")
         if paragraphs:
             content = "\n".join(p.get_text(strip=True) for p in paragraphs[:10])  # First 10 paragraphs
-            return content.strip() if content else "Could not extract content."
+            return clean_extracted_text(content) if content else "Could not extract content."
 
         return "Article content div not found."
 
@@ -179,7 +180,7 @@ def extract_tech_content(url):
         if article_div:
             paragraphs = article_div.find_all("p")
             content = "\n".join(p.get_text(strip=True) for p in paragraphs)
-            return content.strip() if content else "Empty content."
+            return clean_extracted_text(content) if content else "Empty content."
         else:
             return "Content div not found."
 
@@ -225,7 +226,7 @@ def extract_sports_content(url):
         if article_div:
             paragraphs = article_div.find_all("p")
             content = "\n".join(p.get_text(strip=True) for p in paragraphs)
-            return content.strip() if content else "Empty content."
+            return clean_extracted_text(content) if content else "Empty content."
         else:
             return "Content div not found."
 
@@ -271,7 +272,7 @@ def extract_health_content(url):
         if article_div:
             paragraphs = article_div.find_all("p")
             content = "\n".join(p.get_text(strip=True) for p in paragraphs)
-            return content.strip() if content else "Empty content."
+            return clean_extracted_text(content) if content else "Empty content."
         else:
             return "Content div not found."
 
@@ -374,7 +375,7 @@ def get_reddit_posts(query, count=7):
 
 def extract_reddit_content(post):
     if 'content' in post:
-        return post['content'] if post['content'] else "No text content available."
+        return clean_extracted_text(post['content']) if post['content'] else "No text content available."
     else:
         return "No text content available."
 
