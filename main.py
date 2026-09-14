@@ -2,6 +2,8 @@ import requests
 from bs4 import BeautifulSoup
 from ollama import chat, ChatResponse
 import time
+import asyncio
+import aiohttp
 from duckduckgo_search import DDGS as ddgs
 from article_cache import ArticleCache
 
@@ -140,6 +142,43 @@ def extract_article_content(url):
 
     except Exception as e:
         return f"Error extracting content: {e}"
+
+
+async def fetch_article_async(session, url, semaphore):
+    async with semaphore:
+        try:
+            headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+            async with session.get(url, headers=headers, timeout=aiohttp.ClientTimeout(total=10)) as response:
+                html = await response.text()
+                soup = BeautifulSoup(html, "html.parser")
+
+                if "reuters.com" in url:
+                    article_div = soup.find("div", {"data-testid": "ArticleBody"}) or soup.find("div", class_="StandardArticleBody_body")
+                elif "bbc.com" in url:
+                    article_div = soup.find("div", {"data-component": "text-block"}) or soup.find("div", class_="story-body") or soup.find("article") or soup.find("main")
+                else:
+                    article_div = None
+
+                paragraphs = article_div.find_all("p") if article_div else soup.find_all("p")[:10]
+                content = "\n".join(p.get_text(strip=True) for p in paragraphs)
+                return url, (content.strip() if content else "Empty article body.")
+        except Exception as e:
+            return url, f"Error extracting content: {e}"
+
+
+async def extract_articles_batch(urls, max_concurrent=3):
+    semaphore = asyncio.Semaphore(max_concurrent)
+    async with aiohttp.ClientSession() as session:
+        tasks = [fetch_article_async(session, url, semaphore) for url in urls]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+    content_map = {}
+    for result in results:
+        if isinstance(result, Exception):
+            continue
+        url, content = result
+        content_map[url] = content
+    return content_map
 
 
 def get_tech_articles(count=3):
@@ -327,20 +366,32 @@ def get_stuff():
         print(f"\nScraped heading {i + 1}: {heading_text}")
         print(f"Scraped content: {article_text}\n")
 
-    for i, article in enumerate(articles):
-        heading = article.find("h2")
-        if not heading:
-            continue
+        next_para = heading.find_next("p")
+        if next_para:
+            print(f"Preview of next: {next_para.text.strip()}")
+        else:
+            print("End reached.")
 
-        heading_text = heading.text.strip()
-        article_text = article.text.strip()
+        try:
+            response: ChatResponse = chat(model='llama3.2', messages=[
+                {
+                    'role': 'system',
+                    'content': """summarize the defence article and provide
+                     insights on its impact on the present state of global politics
+                     and any future impacts it can have on INDIA
+        """,
+                },
+                {
+                    'role': 'user',
+                    'content': f"Here is the news article:\n\n{article_text}",
+                },
+            ])
 
-        if heading_text in processed_articles:
-            continue
-        processed_articles.add(heading_text)
-
-        print(f"\nScraped heading {i + 1}: {heading_text}")
-        print(f"Scraped content: {article_text}\n")
+            print("\n--- LLM Response ---\n")
+            print(response.message.content)
+            print("\n--------------------\n")
+        except Exception as e:
+            print(f"dunno what happened: {e}")
 
 
 def get_reddit_posts(query, count=7):
@@ -499,56 +550,6 @@ Be concise but thorough, focusing on the most interesting and relevant aspects o
         return f"Analysis Error: {e}"
 
 
-def get_stuff():
-    processed_articles = set()
-
-    html = requests.get("https://idrw.org/")
-    soup = BeautifulSoup(html.text, "html.parser")
-    articles = soup.find_all("article")
-
-    for i, article in enumerate(articles):
-        heading = article.find("h2")
-        if not heading:
-            continue
-
-        heading_text = heading.text.strip()
-        article_text = article.text.strip()
-
-        if heading_text in processed_articles:
-            continue
-        processed_articles.add(heading_text)
-
-        print(f"\nScraped heading {i + 1}: {heading_text}")
-        print(f"Scraped content: {article_text}\n")
-
-        next_para = heading.find_next("p")
-        if next_para:
-            print(f"Preview of next: {next_para.text.strip()}")
-        else:
-            print("End reached.")
-
-        try:
-            response: ChatResponse = chat(model='llama3.2', messages=[
-                {
-                    'role': 'system',
-                    'content': """summarize the defence article and provide
-                     insights on its impact on the present state of global politics
-                     and any future impacts it can have on INDIA
-        """,
-                },
-                {
-                    'role': 'user',
-                    'content': f"Here is the news article:\n\n{article_text}",
-                },
-            ])
-
-            print("\n--- LLM Response ---\n")
-            print(response.message.content)
-            print("\n--------------------\n")
-        except Exception as e:
-            print(f"dunno what happened: {e}")
-
-
 def main():
     print("Select content type to scrape and summarize:")
     print("1. Business  ")
@@ -629,11 +630,14 @@ def main():
         print("No articles found.")
         return
 
+    urls = [article["link"] for article in articles]
+    content_map = asyncio.run(extract_articles_batch(urls, max_concurrent=3))
+
     for i, article in enumerate(articles, 1):
         print(f"\n🔹 [{i}] {article['title']}")
         print(f"🔗 {article['link']}")
 
-        content = extract_func(article["link"])
+        content = content_map.get(article["link"], "No content extracted.")
 
         print(f"\n preview:\n{content[:1000]}...\n")
 
@@ -641,7 +645,6 @@ def main():
         print(f" analysis:\n{analysis}\n")
 
         print("------------------------------\n")
-        time.sleep(1)
 
 
 if __name__ == "__main__":

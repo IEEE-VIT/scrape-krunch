@@ -6,3 +6,4 @@ mcp==1.0.0
 pydantic==2.8.2
 aiohttp==3.9.1
 jsonschema==4.20.0
+aiohttp==3.9.1
