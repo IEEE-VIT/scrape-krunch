@@ -1,3 +1,6 @@
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
+
 import requests
 from bs4 import BeautifulSoup
 from ollama import chat, ChatResponse
@@ -111,6 +114,7 @@ def extract_article_content(url):
 
     try:
         response = requests.get(url, headers=headers, timeout=10)
+        response.raise_for_status()
         soup = BeautifulSoup(response.text, "html.parser")
 
         if "reuters.com" in url:
@@ -142,6 +146,24 @@ def extract_article_content(url):
         return f"Error extracting content: {e}"
 
 
+async def extract_articles_content(articles, extract_func):
+    """Extract a batch in input order, with at most three requests in flight."""
+    semaphore = asyncio.Semaphore(3)
+    loop = asyncio.get_running_loop()
+
+    with ThreadPoolExecutor(max_workers=3) as executor:
+        async def extract_one(article):
+            async with semaphore:
+                try:
+                    return await loop.run_in_executor(
+                        executor, extract_func, article["link"]
+                    )
+                except Exception as exc:
+                    return f"Error extracting content: {exc}"
+
+        return await asyncio.gather(*(extract_one(article) for article in articles))
+
+
 def get_tech_articles(count=3):
     url = "https://techcrunch.com/latest/"
     headers = {"User-Agent": "Mozilla/5.0"}
@@ -170,6 +192,7 @@ def extract_tech_content(url):
     headers = {"User-Agent": "Mozilla/5.0"}
     try:
         response = requests.get(url, headers=headers, timeout=10)
+        response.raise_for_status()
         soup = BeautifulSoup(response.text, "html.parser")
 
         article_div = soup.find("div", class_="article-content")
@@ -218,6 +241,7 @@ def extract_sports_content(url):
     headers = {"User-Agent": "Mozilla/5.0"}
     try:
         response = requests.get(url, headers=headers, timeout=10)
+        response.raise_for_status()
         soup = BeautifulSoup(response.text, "html.parser")
 
         article_div = soup.find("div", class_="story-body") or soup.find("div", class_="article-body")
@@ -264,6 +288,7 @@ def extract_health_content(url):
     headers = {"User-Agent": "Mozilla/5.0"}
     try:
         response = requests.get(url, headers=headers, timeout=10)
+        response.raise_for_status()
         soup = BeautifulSoup(response.text, "html.parser")
 
         article_div = soup.find("div", class_="article-body") or soup.find("div", class_="content")
@@ -629,11 +654,15 @@ def main():
         print("No articles found.")
         return
 
-    for i, article in enumerate(articles, 1):
+    contents = asyncio.run(extract_articles_content(articles, extract_func))
+
+    for i, (article, content) in enumerate(zip(articles, contents), 1):
         print(f"\n🔹 [{i}] {article['title']}")
         print(f"🔗 {article['link']}")
 
-        content = extract_func(article["link"])
+        if content.startswith("Error"):
+            print(f"Skipping failed article: {content}")
+            continue
 
         print(f"\n preview:\n{content[:1000]}...\n")
 
