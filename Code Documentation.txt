@@ -94,3 +94,12 @@ Requirements:
 - Python 3.8+
 - Modules: `requests`, `beautifulsoup4`, `ollama`, `duckduckgo_search`
 - Ollama must be running with model (e.g., llama3.2)
+
+Robots-aware HTTP requests (robots_client.py):
+- All direct scraper GET calls use scrape_get; None means gracefully skipped.
+- RobotFileParser checks the request User-Agent and path per origin.
+- Per-host locks enforce Crawl-delay and prevent duplicate robots fetches.
+- Redirect destinations are checked before content is fetched.
+- INFO logs explain denied or unavailable robots policies.
+- Policies are cached for the run; 404/410 permit access, other retrieval failures skip.
+- Tests cover policy matching, failures, redirects, caching, and concurrent pacing.

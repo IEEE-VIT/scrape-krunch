@@ -1,4 +1,5 @@
-import requests
+import logging
+from robots_client import scrape_get
 from bs4 import BeautifulSoup
 from ollama import chat, ChatResponse
 import time
@@ -110,7 +111,9 @@ def get_bbc_business_articles(count=3):
     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
 
     try:
-        response = requests.get(url, headers=headers, timeout=10)
+        response = scrape_get(url, headers=headers, timeout=10)
+        if response is None:
+            return []
         soup = BeautifulSoup(response.text, "html.parser")
 
         articles = []
@@ -146,7 +149,9 @@ def extract_article_content(url):
     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
 
     try:
-        response = requests.get(url, headers=headers, timeout=10)
+        response = scrape_get(url, headers=headers, timeout=10)
+        if response is None:
+            return ""
         soup = BeautifulSoup(response.text, "html.parser")
 
         site_selectors = []
@@ -170,7 +175,9 @@ def extract_article_content(url):
 def get_tech_articles(count=3):
     url = "https://techcrunch.com/latest/"
     headers = {"User-Agent": "Mozilla/5.0"}
-    response = requests.get(url, headers=headers)
+    response = scrape_get(url, headers=headers)
+    if response is None:
+        return []
     soup = BeautifulSoup(response.text, "html.parser")
 
     articles = []
@@ -194,7 +201,9 @@ def get_tech_articles(count=3):
 def extract_tech_content(url):
     headers = {"User-Agent": "Mozilla/5.0"}
     try:
-        response = requests.get(url, headers=headers, timeout=10)
+        response = scrape_get(url, headers=headers, timeout=10)
+        if response is None:
+            return ""
         soup = BeautifulSoup(response.text, "html.parser")
 
         site_selectors = [
@@ -210,7 +219,9 @@ def extract_tech_content(url):
 def get_sports_articles(count=3):
     url = "https://www.espn.com/sports/"
     headers = {"User-Agent": "Mozilla/5.0"}
-    response = requests.get(url, headers=headers)
+    response = scrape_get(url, headers=headers)
+    if response is None:
+        return []
     soup = BeautifulSoup(response.text, "html.parser")
 
     articles = []
@@ -237,7 +248,9 @@ def get_sports_articles(count=3):
 def extract_sports_content(url):
     headers = {"User-Agent": "Mozilla/5.0"}
     try:
-        response = requests.get(url, headers=headers, timeout=10)
+        response = scrape_get(url, headers=headers, timeout=10)
+        if response is None:
+            return ""
         soup = BeautifulSoup(response.text, "html.parser")
 
         site_selectors = [
@@ -253,7 +266,9 @@ def extract_sports_content(url):
 def get_health_articles(count=3):
     url = "https://www.healthline.com/health-news"
     headers = {"User-Agent": "Mozilla/5.0"}
-    response = requests.get(url, headers=headers)
+    response = scrape_get(url, headers=headers)
+    if response is None:
+        return []
     soup = BeautifulSoup(response.text, "html.parser")
 
     articles = []
@@ -280,7 +295,9 @@ def get_health_articles(count=3):
 def extract_health_content(url):
     headers = {"User-Agent": "Mozilla/5.0"}
     try:
-        response = requests.get(url, headers=headers, timeout=10)
+        response = scrape_get(url, headers=headers, timeout=10)
+        if response is None:
+            return ""
         soup = BeautifulSoup(response.text, "html.parser")
 
         site_selectors = [
@@ -296,7 +313,9 @@ def extract_health_content(url):
 def get_entertainment_articles(count=3):
     url = "https://variety.com/latest/"
     headers = {"User-Agent": "Mozilla/5.0"}
-    response = requests.get(url, headers=headers)
+    response = scrape_get(url, headers=headers)
+    if response is None:
+        return []
     soup = BeautifulSoup(response.text, "html.parser")
 
     articles = []
@@ -322,7 +341,9 @@ def get_entertainment_articles(count=3):
 def get_stuff():
     processed_articles = set()
 
-    html = requests.get("https://idrw.org/")
+    html = scrape_get("https://idrw.org/")
+    if html is None:
+        return
     soup = BeautifulSoup(html.text, "html.parser")
     articles = soup.find_all("article")
 
@@ -362,7 +383,9 @@ def get_reddit_posts(query, count=7):
     headers = {"User-Agent": "Mozilla/5.0"}
 
     try:
-        response = requests.get(search_url, headers=headers)
+        response = scrape_get(search_url, headers=headers)
+        if response is None:
+            return []
         data = response.json()
 
         posts = []
@@ -398,7 +421,9 @@ def get_reddit_comments(post_url, max_comments=50):
 
     try:
         json_url = post_url.rstrip('/') + '.json'
-        response = requests.get(json_url, headers=headers)
+        response = scrape_get(json_url, headers=headers)
+        if response is None:
+            return "No comments available"
         data = response.json()
 
         comments = []
@@ -516,7 +541,9 @@ Be concise but thorough, focusing on the most interesting and relevant aspects o
 def get_stuff():
     processed_articles = set()
 
-    html = requests.get("https://idrw.org/")
+    html = scrape_get("https://idrw.org/")
+    if html is None:
+        return
     soup = BeautifulSoup(html.text, "html.parser")
     articles = soup.find_all("article")
 
@@ -648,6 +675,8 @@ def main():
         print(f"🔗 {article['link']}")
 
         content = extract_func(article["link"])
+        if not content:
+            continue
 
         print(f"\n preview:\n{content[:1000]}...\n")
 
@@ -659,4 +688,5 @@ def main():
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
     main()

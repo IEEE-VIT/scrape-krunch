@@ -69,3 +69,25 @@ pip install requests beautifulsoup4
 4. Buy/Sell/Hold sentiment catagories based on NIFTY50 and S&P500 using financial news data.
 5. Add tickers manually or let users input a company name for financial news. 
 
+
+## Robots.txt compliance
+
+Direct article, category, defence, and Reddit HTTP requests check each origin's
+`robots.txt` with `urllib.robotparser.RobotFileParser` before fetching content.
+The check uses the same User-Agent sent with the request (`Mozilla/5.0` by default).
+Rules are cached for the process lifetime. Disallowed URLs are skipped with an
+INFO log, including redirect destinations. Blocked articles are not sent to the LLM.
+
+`Crawl-delay` is enforced per host, including concurrent callers, starting after
+the robots fetch and between subsequent requests. Different hosts can proceed
+independently, with at most three transport calls active. Missing robots files
+(404/410) allow scraping; inaccessible rules, other HTTP errors, or timeouts
+skip that origin for the current run. Restart the application to retry its rules.
+
+DuckDuckGo search requests are managed internally by the third-party search
+library; returned article URLs pass through the robots checks above.
+No additional dependencies are needed. Run the isolated policy tests with:
+
+```bash
+python -m unittest discover -s tests -v
+```
