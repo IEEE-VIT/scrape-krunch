@@ -11,15 +11,52 @@ HEADERS = {
     "Accept-Language": "en-US,en;q=0.9",
 }
 
-# CACHE_LIMIT = 5
-# max size set to low number for testing needs below, else, default is set at 50
-article_cache = ArticleCache("""max_size = CACHE_LIMIT""")
+CACHE_LIMIT = 50
+article_cache = ArticleCache(max_size=CACHE_LIMIT)
+
+FALLBACK_CONTAINER_SELECTORS = [
+    ("article", {}),
+    ("div", {"class": "article-content"}),
+    ("div", {"class": "article-body"}),
+    ("div", {"class": "story-body"}),
+    ("div", {"class": "entry-content"}),
+    ("div", {"class": "post-content"}),
+    ("div", {"class": "content-body"}),
+    ("div", {"class": "content"}),
+    ("main", {}),
+]
+
+MIN_MEANINGFUL_CONTENT_LENGTH = 200
+
+
+def _text_from_container(container, paragraph_limit=None):
+    paragraphs = container.find_all("p")
+    if paragraph_limit:
+        paragraphs = paragraphs[:paragraph_limit]
+    return "\n".join(p.get_text(strip=True) for p in paragraphs).strip()
+
+
+def extract_with_fallback(soup, site_selectors=None, url=""):
+    candidates = list(site_selectors or []) + FALLBACK_CONTAINER_SELECTORS
+
+    for tag, attrs in candidates:
+        container = soup.find(tag, attrs) if attrs else soup.find(tag)
+        if not container:
+            continue
+        content = _text_from_container(container)
+        if len(content) >= MIN_MEANINGFUL_CONTENT_LENGTH:
+            return content
+
+    print(f"Warning: no known article container matched for '{url}'. "
+          f"Falling back to generic <p> tag extraction.")
+    content = _text_from_container(soup, paragraph_limit=10)
+    return content if content else "Could not extract content."
 
 
 def search_duckduckgo(query, max_results=10):
     with ddgs() as ddgs_instance:
         reddit_results = list(
-            ddgs_instance.text(keywords=query, max_results=max_results,backend="lite")
+            ddgs_instance.text(keywords=query, max_results=max_results, backend="lite")
         )
     return reddit_results
 
@@ -27,20 +64,16 @@ def search_duckduckgo(query, max_results=10):
 def get_article_links(count=3):
     try:
         query = "latest business news 2025"
-        print(f"biz articles getting..")
+        print("biz articles getting..")
 
-        results = search_duckduckgo(
-            query, max_results=count * 3
-        )  # Get more results to account for cached ones
+        results = search_duckduckgo(query, max_results=count * 3)
         articles = []
 
         for result in results:
             if result.get("title") and result.get("href"):
                 url = result["href"]
                 if article_cache.is_article_processed(url, result["title"]):
-                    print(
-                        f"Skipping previously processed article: {result['title']}"
-                    )
+                    print(f"Skipping previously processed article: {result['title']}")
                     continue
 
                 if any(
@@ -63,16 +96,10 @@ def get_article_links(count=3):
         if not articles:
             for result in results:
                 if result.get("title") and result.get("href"):
-                    if article_cache.is_article_processed(
-                        result["href"], result["title"]
-                    ):
-                        print(
-                            f"Skipping previously processed article: {result['title']}"
-                        )
+                    if article_cache.is_article_processed(result["href"], result["title"]):
+                        print(f"Skipping previously processed article: {result['title']}")
                         continue
-                    articles.append(
-                        {"title": result["title"], "link": result["href"]}
-                    )
+                    articles.append({"title": result["title"], "link": result["href"]})
                     article_cache.add_article(result["href"], result["title"])
                     if len(articles) >= count:
                         break
@@ -86,10 +113,7 @@ def get_article_links(count=3):
 
 def get_fallback_business_news(count=3):
     return [{
-        "title": (
-            "Business News: Global Markets Show Mixed Performance Amid Economic"
-            " Uncertainty"
-        ),
+        "title": "Business News: Global Markets Show Mixed Performance Amid Economic Uncertainty",
         "link": "https://example.com/business-news",
     }]
 
@@ -111,16 +135,10 @@ def get_bbc_business_articles(count=3):
                 title = title_elem.get_text(strip=True)
 
                 if title and len(title) > 10:
-                    full_url = (
-                        href
-                        if href.startswith("http")
-                        else f"https://www.bbc.com{href}"
-                    )
+                    full_url = href if href.startswith("http") else f"https://www.bbc.com{href}"
 
                     if article_cache.is_article_processed(full_url, title):
-                        print(
-                            f"Skipping previously processed article: {title}"
-                        )
+                        print(f"Skipping previously processed article: {title}")
                         continue
 
                     articles.append({"title": title, "link": full_url})
@@ -133,7 +151,7 @@ def get_bbc_business_articles(count=3):
 
     except Exception as e:
         print(f"BBC null: {e}")
-        return [{"title": "unableto  fetch  articles", "link": ""}]
+        return [{"title": "unable to fetch articles", "link": ""}]
 
 
 def extract_article_content(url):
@@ -141,19 +159,16 @@ def extract_article_content(url):
         response = requests.get(url, headers=HEADERS, timeout=10)
         soup = BeautifulSoup(response.text, "html.parser")
 
+        site_selectors = []
         if "reuters.com" in url:
-            article_div = soup.find(
-                "div", {"data-testid": "ArticleBody"}
-            ) or soup.find("div", class_="StandardArticleBody_body")
+            article_div = soup.find("div", {"data-testid": "ArticleBody"}) or soup.find("div", class_="StandardArticleBody_body")
             if article_div:
                 paragraphs = article_div.find_all("p")
                 content = "\n".join(p.get_text(strip=True) for p in paragraphs)
                 return content.strip() if content else "Empty article body."
 
         elif "bbc.com" in url:
-            article_div = soup.find(
-                "div", {"data-component": "text-block"}
-            ) or soup.find("div", class_="story-body")
+            article_div = soup.find("div", {"data-component": "text-block"}) or soup.find("div", class_="story-body")
             if not article_div:
                 article_div = soup.find("article") or soup.find("main")
 
@@ -164,12 +179,10 @@ def extract_article_content(url):
 
         paragraphs = soup.find_all("p")
         if paragraphs:
-            content = "\n".join(
-                p.get_text(strip=True) for p in paragraphs[:10]
-            )  # First 10 paragraphs
+            content = "\n".join(p.get_text(strip=True) for p in paragraphs[:10])
             return content.strip() if content else "Could not extract content."
 
-        return "Article content div not found."
+        return extract_with_fallback(soup, site_selectors=site_selectors, url=url)
 
     except Exception as e:
         return f"Error extracting content: {e}"
@@ -203,16 +216,11 @@ def extract_tech_content(url):
         response = requests.get(url, headers=HEADERS, timeout=10)
         soup = BeautifulSoup(response.text, "html.parser")
 
-        article_div = soup.find("div", class_="article-content")
-        if not article_div:
-            article_div = soup.find("div", class_="entry-content")
-
-        if article_div:
-            paragraphs = article_div.find_all("p")
-            content = "\n".join(p.get_text(strip=True) for p in paragraphs)
-            return content.strip() if content else "Empty content."
-        else:
-            return "Content div not found."
+        site_selectors = [
+            ("div", {"class": "article-content"}),
+            ("div", {"class": "entry-content"}),
+        ]
+        return extract_with_fallback(soup, site_selectors=site_selectors, url=url)
 
     except Exception as e:
         return f"Error: {e}"
@@ -231,9 +239,7 @@ def get_sports_articles(count=3):
         title_elem = link.find("h3") or link.find("h2") or link.find("span")
         if title_elem and "/story/" in href:
             title = title_elem.get_text(strip=True)
-            full_url = (
-                href if href.startswith("http") else "https://www.espn.com" + href
-            )
+            full_url = href if href.startswith("http") else "https://www.espn.com" + href
 
             if article_cache.is_article_processed(full_url, title):
                 print(f"Skipping previously processed article: {title}")
@@ -251,16 +257,11 @@ def extract_sports_content(url):
         response = requests.get(url, headers=HEADERS, timeout=10)
         soup = BeautifulSoup(response.text, "html.parser")
 
-        article_div = soup.find("div", class_="story-body") or soup.find(
-            "div", class_="article-body"
-        )
-
-        if article_div:
-            paragraphs = article_div.find_all("p")
-            content = "\n".join(p.get_text(strip=True) for p in paragraphs)
-            return content.strip() if content else "Empty content."
-        else:
-            return "Content div not found."
+        site_selectors = [
+            ("div", {"class": "story-body"}),
+            ("div", {"class": "article-body"}),
+        ]
+        return extract_with_fallback(soup, site_selectors=site_selectors, url=url)
 
     except Exception as e:
         return f"Error: {e}"
@@ -279,11 +280,7 @@ def get_health_articles(count=3):
         title_elem = link.find("h2") or link.find("h3")
         if title_elem and "/health-news/" in href:
             title = title_elem.get_text(strip=True)
-            full_url = (
-                href
-                if href.startswith("http")
-                else "https://www.healthline.com" + href
-            )
+            full_url = href if href.startswith("http") else "https://www.healthline.com" + href
 
             if article_cache.is_article_processed(full_url, title):
                 print(f"Skipping previously processed article: {title}")
@@ -301,16 +298,11 @@ def extract_health_content(url):
         response = requests.get(url, headers=HEADERS, timeout=10)
         soup = BeautifulSoup(response.text, "html.parser")
 
-        article_div = soup.find("div", class_="article-body") or soup.find(
-            "div", class_="content"
-        )
-
-        if article_div:
-            paragraphs = article_div.find_all("p")
-            content = "\n".join(p.get_text(strip=True) for p in paragraphs)
-            return content.strip() if content else "Empty content."
-        else:
-            return "Content div not found."
+        site_selectors = [
+            ("div", {"class": "article-body"}),
+            ("div", {"class": "content"}),
+        ]
+        return extract_with_fallback(soup, site_selectors=site_selectors, url=url)
 
     except Exception as e:
         return f"Error: {e}"
@@ -342,9 +334,7 @@ def get_entertainment_articles(count=3):
 
 
 def get_reddit_posts(query, count=7):
-    search_url = (
-        f"https://www.reddit.com/search.json?q={query}&sort=hot&limit={count}"
-    )
+    search_url = f"https://www.reddit.com/search.json?q={query}&sort=hot&limit={count}"
 
     try:
         response = requests.get(search_url, headers=HEADERS)
@@ -378,11 +368,8 @@ def get_reddit_posts(query, count=7):
 
 def extract_reddit_content(post):
     if "content" in post:
-        return (
-            post["content"] if post["content"] else "No text content available."
-        )
-    else:
-        return "No text content available."
+        return post["content"] if post["content"] else "No text content available."
+    return "No text content available."
 
 
 def get_reddit_comments(post_url, max_comments=50):
@@ -418,9 +405,7 @@ def fetch_comments_continuously(post_url):
 
     try:
         while True:
-            print(
-                f" fetching comments {comment_count // batch_size + 1}..."
-            )
+            print(f" fetching comments {comment_count // batch_size + 1}...")
 
             comments = get_reddit_comments(
                 post_url, max_comments=batch_size + comment_count
@@ -434,10 +419,7 @@ def fetch_comments_continuously(post_url):
                     all_comments.extend(new_comments)
                     comment_count = len(all_comments)
 
-                    print(
-                        f" got {len(new_comments)} new comments (total num:"
-                        f" {comment_count})"
-                    )
+                    print(f" got {len(new_comments)} new comments (total num: {comment_count})")
 
                     for i, comment in enumerate(new_comments[-3:], 1):
                         print(f" {comment[:400]}...")
@@ -451,10 +433,7 @@ def fetch_comments_continuously(post_url):
             time.sleep(2)
 
     except KeyboardInterrupt:
-        print(
-            "\n fetch interrupted num of comments collected:"
-            f" {len(all_comments)}"
-        )
+        print(f"\n fetch interrupted num of comments collected: {len(all_comments)}")
 
     return "\n\n".join(all_comments) if all_comments else "no comments available"
 
@@ -484,14 +463,11 @@ def analyze_with_llm(title, content):
         )
         return response.message.content
     except Exception as e:
-        return f"  Error: {e}"
+        return f" Error: {e}"
 
 
 def analyze_reddit_discussion(title, combined_content):
-    if (
-        combined_content.startswith("Error :")
-        or len(combined_content.split()) < 50
-    ):
+    if combined_content.startswith("Error :") or len(combined_content.split()) < 50:
         return "Insufficient content for analysis. Skipping."
 
     try:
@@ -514,10 +490,7 @@ Be concise but thorough, focusing on the most interesting and relevant aspects o
                 },
                 {
                     "role": "user",
-                    "content": (
-                        f"Reddit Post Title: {title}\n\nContent and"
-                        f" Comments:\n{combined_content}"
-                    ),
+                    "content": f"Reddit Post Title: {title}\n\nContent and Comments:\n{combined_content}",
                 },
             ],
         )
@@ -562,17 +535,13 @@ def get_stuff():
                         "role": "system",
                         "content": (
                             "summarize the defence article and provide\n"
-                            "                     insights on its impact on"
-                            " the present state of global politics\n"
-                            "                     and any future impacts it"
-                            " can have on INDIA\n        "
+                            " insights on its impact on the present state of global politics\n"
+                            " and any future impacts it can have on INDIA\n"
                         ),
                     },
                     {
                         "role": "user",
-                        "content": (
-                            f"Here is the news article:\n\n{article_text}"
-                        ),
+                        "content": f"Here is the news article:\n\n{article_text}",
                     },
                 ],
             )
@@ -586,53 +555,46 @@ def get_stuff():
 
 def main():
     print("Select content type to scrape and summarize:")
-    print("1. Business  ")
+    print("1. Business")
     print("2. Technology [wip]")
-    print("3. Sports  ")
-    print("4. Health  ")
-    print("5. DEFENCE ")
+    print("3. Sports")
+    print("4. Health")
+    print("5. DEFENCE")
     print("6. Reddit [work in progress]")
 
     choice = input("Enter your choice (1-6): ").strip()
 
     if choice == "1":
-        print("fetching  Business  articles...")
+        print("fetching Business articles...")
         articles = get_article_links()
         extract_func = extract_article_content
     elif choice == "2":
-        print("fetching  Technology  articles...")
+        print("fetching Technology articles...")
         articles = get_tech_articles()
         extract_func = extract_tech_content
     elif choice == "3":
-        print(" fetching  Sports  articles...")
+        print("fetching Sports articles...")
         articles = get_sports_articles()
         extract_func = extract_sports_content
     elif choice == "4":
-        print("fetching  Health  articles...")
+        print("fetching Health articles...")
         articles = get_health_articles()
         extract_func = extract_health_content
     elif choice == "5":
         get_stuff()
         return
     elif choice == "6":
-        get_reddit_posts_query = input(
-            "Enter the topic you want to search on Reddit: "
-        )
+        get_reddit_posts_query = input("Enter the topic you want to search on Reddit: ")
         print(f"fetching Reddit posts for '{get_reddit_posts_query}'...")
         articles = get_reddit_posts(get_reddit_posts_query, count=1)
         extract_func = extract_reddit_content
 
         if not articles:
-            print("no posted found ")
+            print("no posted found")
             return
 
         print(f"Found {len(articles)} Reddit posts.")
-        if len(articles) < 1:
-            print("limited postes avaliable")
-            count = len(articles)
-        else:
-            count = 1
-
+        count = 1 if len(articles) >= 1 else len(articles)
         articles = articles[:count]
         print(f" {count} reddit posts:")
 
@@ -644,18 +606,14 @@ def main():
 
             print(f"\n post preview:\n{content[:500]}...\n")
 
-            print("\n  comments fetching...")
+            print("\n comments fetching...")
             all_comments = fetch_comments_continuously(articles[i]["link"])
 
-            combined_content = (
-                f" CONTENT:\n{content}\n\nCOMMENTS:\n{all_comments}"
-            )
+            combined_content = f" CONTENT:\n{content}\n\nCOMMENTS:\n{all_comments}"
 
-            print(f"\n analysis of post and comments...")
-            analysis = analyze_reddit_discussion(
-                articles[i]["title"], combined_content
-            )
-            print(f"\n  Analysis:\n{analysis}\n")
+            print("\n analysis of post and comments...")
+            analysis = analyze_reddit_discussion(articles[i]["title"], combined_content)
+            print(f"\n Analysis:\n{analysis}\n")
 
             print("------------------------------\n")
 
