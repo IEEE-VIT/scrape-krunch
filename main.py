@@ -1,15 +1,45 @@
+import argparse
+import json
+import os
+from datetime import datetime
 import requests
 from bs4 import BeautifulSoup
-from ollama import Client, ChatResponse
-import httpx
+from ollama import chat, ChatResponse
 import time
 from duckduckgo_search import DDGS as ddgs
 from article_cache import ArticleCache
-
 #CACHE_LIMIT = 5
 #max size set to low number for testing needs below, else, default is set at 50
 article_cache = ArticleCache("""max_size = CACHE_LIMIT""")
-ollama_client = Client(timeout=60)
+def export_articles(export_data, output_format):
+    """
+    Write collected article title/source/raw text/summary to exports/ as JSON or Markdown.
+    """
+    if not export_data:
+        print("\nNothing to export.")
+        return
+
+    os.makedirs("exports", exist_ok=True)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+    if output_format == "json":
+        filepath = os.path.join("exports", f"export_{timestamp}.json")
+        with open(filepath, "w", encoding="utf-8") as f:
+            json.dump(export_data, f, indent=2, ensure_ascii=False)
+
+    elif output_format == "markdown":
+        filepath = os.path.join("exports", f"export_{timestamp}.md")
+        with open(filepath, "w", encoding="utf-8") as f:
+            for entry in export_data:
+                f.write(f"# {entry['title']}\n\n")
+                f.write(f"**Source:** {entry['source_url']}\n\n")
+                f.write("## Article Text\n\n")
+                f.write(f"{entry['raw_text']}\n\n")
+                f.write("## Summary\n\n")
+                f.write(f"{entry['summary']}\n\n")
+                f.write("---\n\n")
+
+    print(f"\nExported {len(export_data)} article(s) to {filepath}")
 
 def search_duckduckgo(query, max_results=10):
     with ddgs() as ddgs_instance:
@@ -450,7 +480,7 @@ def analyze_with_llm(title, content):
     if content.startswith("Error :") or len(content.split()) < 30:
         return "low content. skipping"
     try:
-        response: ChatResponse = ollama_client.chat(model='llama3.2', messages=[
+        response: ChatResponse = chat(model='llama3.2', messages=[
             {
                 'role': 'system',
                 'content': """You are a global news analyst. Given a news article, respond with the following format:
@@ -466,8 +496,6 @@ def analyze_with_llm(title, content):
             },
         ])
         return response.message.content
-    except httpx.TimeoutException:
-        return "  Error: Ollama request timed out. Make sure your local Ollama instance is running and responsive."
     except Exception as e:
         return f"  Error: {e}"
 
@@ -477,7 +505,7 @@ def analyze_reddit_discussion(title, combined_content):
         return "Insufficient content for analysis. Skipping."
 
     try:
-        response: ChatResponse = ollama_client.chat(model='llama3.2', messages=[
+        response: ChatResponse = chat(model='llama3.2', messages=[
             {
                 'role': 'system',
                 'content': """You are a Reddit discussion analyst powered by Llama3.2. Analyze Reddit posts and their comments to provide comprehensive insights. Structure your response with:
@@ -498,13 +526,11 @@ Be concise but thorough, focusing on the most interesting and relevant aspects o
             },
         ])
         return response.message.content
-    except httpx.TimeoutException:
-        return "Error: Ollama request timed out. Make sure your local Ollama instance is running and responsive."
     except Exception as e:
         return f"Analysis Error: {e}"
 
 
-def get_stuff():
+def get_stuff(export_data=None):
     processed_articles = set()
 
     html = requests.get("https://idrw.org/")
@@ -533,7 +559,7 @@ def get_stuff():
             print("End reached.")
 
         try:
-            response: ChatResponse = ollama_client.chat(model='llama3.2', messages=[
+            response: ChatResponse = chat(model='llama3.2', messages=[
                 {
                     'role': 'system',
                     'content': """summarize the defence article and provide
@@ -550,13 +576,37 @@ def get_stuff():
             print("\n--- LLM Response ---\n")
             print(response.message.content)
             print("\n--------------------\n")
-        except httpx.TimeoutException:
-            print("Error: Ollama request timed out. Make sure your local Ollama instance is running and responsive.")    
+
+            if export_data is not None:
+                export_data.append({
+                    "title": heading_text,
+                    # idrw.org's listing page doesn't expose a per-article permalink,
+                    # so the source falls back to the listing page itself.
+                    "source_url": "https://idrw.org/",
+                    "raw_text": article_text,
+                    "summary": response.message.content,
+                })
         except Exception as e:
             print(f"dunno what happened: {e}")
 
 
 def main():
+    # before
+def main():
+    print("Select content type to scrape and summarize:")
+
+# after
+def main():
+    parser = argparse.ArgumentParser(description="Scrape and summarize news articles.")
+    parser.add_argument(
+        "--output-format",
+        choices=["json", "markdown"],
+        default=None,
+        help="Export scraped articles and summaries to exports/ as json or markdown.",
+    )
+    args = parser.parse_args()
+    export_data = []
+
     print("Select content type to scrape and summarize:")
     print("1. Business  ")
     print("2. Technology [wip]")
@@ -583,8 +633,10 @@ def main():
         print("fetching  Health  articles...")
         articles = get_health_articles()
         extract_func = extract_health_content
-    elif choice == "5":
-        get_stuff()
+     elif choice == "5":
+        get_stuff(export_data)
+        if args.output_format:
+            export_articles(export_data, args.output_format)
         return
     elif choice == "6":
         get_reddit_posts_query = input("Enter the topic you want to search on Reddit: ")
@@ -623,8 +675,17 @@ def main():
             analysis = analyze_reddit_discussion(articles[i]["title"], combined_content)
             print(f"\n  Analysis:\n{analysis}\n")
 
+            export_data.append({
+                "title": articles[i]["title"],
+                "source_url": articles[i]["link"],
+                "raw_text": combined_content,
+                "summary": analysis,
+            })
+
             print("------------------------------\n")
 
+        if args.output_format:
+            export_articles(export_data, args.output_format)
         return
 
     else:
@@ -647,8 +708,18 @@ def main():
         analysis = analyze_with_llm(article["title"], content)
         print(f" analysis:\n{analysis}\n")
 
+        export_data.append({
+            "title": article["title"],
+            "source_url": article["link"],
+            "raw_text": content,
+            "summary": analysis,
+        })
+
         print("------------------------------\n")
         time.sleep(1)
+
+    if args.output_format:
+        export_articles(export_data, args.output_format)
 
 
 if __name__ == "__main__":
