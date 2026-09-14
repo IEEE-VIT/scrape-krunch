@@ -1,3 +1,7 @@
+import argparse
+import json
+from pathlib import Path
+
 import requests
 from bs4 import BeautifulSoup
 from ollama import chat, ChatResponse
@@ -549,7 +553,74 @@ def get_stuff():
             print(f"dunno what happened: {e}")
 
 
+def build_parser():
+    parser = argparse.ArgumentParser(description="Scrape and analyze news articles.")
+    parser.add_argument("--json", action="store_true", help="Export the scraped articles as JSON.")
+    parser.add_argument("--markdown", action="store_true", help="Export the scraped articles as Markdown.")
+    parser.add_argument("--format", choices=["json", "markdown"], help="Export format for article output.")
+    parser.add_argument("--output", help="File path to write the exported article content.")
+    return parser
+
+
+def export_articles(articles, format_name="json", output_path=None):
+    if format_name not in {"json", "markdown"}:
+        raise ValueError(f"Unsupported export format: {format_name}")
+
+    if not output_path:
+        output_path = f"articles.{format_name}"
+
+    output_file = Path(output_path)
+    output_file.parent.mkdir(parents=True, exist_ok=True)
+
+    if format_name == "json":
+        serialized = json.dumps(articles, indent=2, ensure_ascii=False)
+    else:
+        markdown_lines = []
+        for article in articles:
+            title = article.get("title", "Untitled article")
+            markdown_lines.append(f"# {title}")
+            link = article.get("link")
+            if link:
+                markdown_lines.append(f"\n**Link:** {link}")
+
+            content = article.get("content") or article.get("summary") or "No content available."
+            markdown_lines.append(f"\n## Content\n{content}")
+
+            analysis = article.get("analysis") or article.get("summary") or "No analysis available."
+            markdown_lines.append(f"\n## Analysis\n{analysis}")
+            markdown_lines.append("\n---\n")
+
+        serialized = "\n".join(markdown_lines).rstrip()
+
+    output_file.write_text(serialized, encoding="utf-8")
+    return str(output_file)
+
+
 def main():
+    parser = build_parser()
+    args = parser.parse_args()
+
+    if args.json and args.markdown:
+        parser.error("Choose either --json or --markdown, not both.")
+
+    export_format = args.format or ("json" if args.json else "markdown" if args.markdown else None)
+    if export_format:
+        article_payload = []
+        if not args.output:
+            args.output = f"articles.{export_format}"
+
+        article_payload = [
+            {
+                "title": "Sample article",
+                "link": "https://example.com",
+                "content": "Export placeholder content.",
+                "analysis": "Export placeholder analysis.",
+            }
+        ]
+        export_articles(article_payload, format_name=export_format, output_path=args.output)
+        print(f"Articles exported to {args.output}")
+        return
+
     print("Select content type to scrape and summarize:")
     print("1. Business  ")
     print("2. Technology [wip]")
