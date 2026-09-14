@@ -1,6 +1,7 @@
 import requests
 from bs4 import BeautifulSoup
-from ollama import chat, ChatResponse
+from ollama import Client, ChatResponse
+import httpx
 import time
 from duckduckgo_search import DDGS as ddgs
 from article_cache import ArticleCache
@@ -8,7 +9,7 @@ from article_cache import ArticleCache
 #CACHE_LIMIT = 5
 #max size set to low number for testing needs below, else, default is set at 50
 article_cache = ArticleCache("""max_size = CACHE_LIMIT""")
-
+ollama_client = Client(timeout=60)
 
 def search_duckduckgo(query, max_results=10):
     with ddgs() as ddgs_instance:
@@ -449,7 +450,7 @@ def analyze_with_llm(title, content):
     if content.startswith("Error :") or len(content.split()) < 30:
         return "low content. skipping"
     try:
-        response: ChatResponse = chat(model='llama3.2', messages=[
+        response: ChatResponse = ollama_client.chat(model='llama3.2', messages=[
             {
                 'role': 'system',
                 'content': """You are a global news analyst. Given a news article, respond with the following format:
@@ -465,6 +466,8 @@ def analyze_with_llm(title, content):
             },
         ])
         return response.message.content
+    except httpx.TimeoutException:
+        return "  Error: Ollama request timed out. Make sure your local Ollama instance is running and responsive."
     except Exception as e:
         return f"  Error: {e}"
 
@@ -474,7 +477,7 @@ def analyze_reddit_discussion(title, combined_content):
         return "Insufficient content for analysis. Skipping."
 
     try:
-        response: ChatResponse = chat(model='llama3.2', messages=[
+        response: ChatResponse = ollama_client.chat(model='llama3.2', messages=[
             {
                 'role': 'system',
                 'content': """You are a Reddit discussion analyst powered by Llama3.2. Analyze Reddit posts and their comments to provide comprehensive insights. Structure your response with:
@@ -495,6 +498,8 @@ Be concise but thorough, focusing on the most interesting and relevant aspects o
             },
         ])
         return response.message.content
+    except httpx.TimeoutException:
+        return "Error: Ollama request timed out. Make sure your local Ollama instance is running and responsive."
     except Exception as e:
         return f"Analysis Error: {e}"
 
@@ -528,7 +533,7 @@ def get_stuff():
             print("End reached.")
 
         try:
-            response: ChatResponse = chat(model='llama3.2', messages=[
+            response: ChatResponse = ollama_client.chat(model='llama3.2', messages=[
                 {
                     'role': 'system',
                     'content': """summarize the defence article and provide
@@ -545,6 +550,8 @@ def get_stuff():
             print("\n--- LLM Response ---\n")
             print(response.message.content)
             print("\n--------------------\n")
+        except httpx.TimeoutException:
+            print("Error: Ollama request timed out. Make sure your local Ollama instance is running and responsive.")    
         except Exception as e:
             print(f"dunno what happened: {e}")
 
