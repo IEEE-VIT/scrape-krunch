@@ -5,8 +5,10 @@ from ollama import chat, ChatResponse
 import time
 from duckduckgo_search import DDGS as ddgs
 from article_cache import ArticleCache
+from reddit_service import RedditService, extract_reddit_content
 
 article_cache = ArticleCache()
+reddit_service = RedditService()
 
 FALLBACK_CONTAINER_SELECTORS = [
     ("article", {}),
@@ -358,68 +360,8 @@ def get_stuff():
         print(f"Scraped content: {article_text}\n")
 
 
-def get_reddit_posts(query, count=7):
-    search_url = f"https://www.reddit.com/search.json?q={query}&sort=hot&limit={count}"
-    headers = {"User-Agent": "Mozilla/5.0"}
-
-    try:
-        response = requests.get(search_url, headers=headers)
-        data = response.json()
-
-        posts = []
-        for post in data['data']['children']:
-            post_data = post['data']
-            title = post_data['title']
-            selftext = post_data.get('selftext', '')
-            url = f"https://www.reddit.com{post_data['permalink']}"
-            subreddit = post_data['subreddit']
-            score = post_data['score']
-
-            posts.append({
-                'title': f"[r/{subreddit}] {title}",
-                'link': url,
-                'content': selftext,
-                'score': score
-            })
-
-        return posts
-    except Exception as e:
-        return [{"title": f"Error fetching Reddit posts: {e}", "link": "", "content": "", "score": 0}]
-
-
-def extract_reddit_content(post):
-    if 'content' in post:
-        return post['content'] if post['content'] else "No text content available."
-    else:
-        return "No text content available."
-
-
-def get_reddit_comments(post_url, max_comments=50):
-    headers = {"User-Agent": "Mozilla/5.0"}
-
-    try:
-        json_url = post_url.rstrip('/') + '.json'
-        response = requests.get(json_url, headers=headers)
-        data = response.json()
-
-        comments = []
-        if len(data) > 1 and 'data' in data[1]:
-            comment_data = data[1]['data']['children']
-
-            for comment in comment_data[:max_comments]:
-                if comment['kind'] == 't1' and 'body' in comment['data']:
-                    body = comment['data']['body']
-                    author = comment['data']['author']
-                    score = comment['data']['score']
-                    comments.append(f"[{author}] ({score} points): {body}")
-
-        return '\n\n'.join(comments) if comments else "No comments available"
-
-    except Exception as e:
-        return f"Error fetching comments: {e}"
-
-
-def fetch_comments_continuously(post_url):
+def fetch_comments_continuously(post_url, service: RedditService = None):
+    service = service or reddit_service
     all_comments = []
     comment_count = 0
     batch_size = 10
@@ -431,33 +373,34 @@ def fetch_comments_continuously(post_url):
         while True:
             print(f" fetching comments {comment_count // batch_size + 1}...")
 
-            comments = get_reddit_comments(post_url, max_comments=batch_size + comment_count)
+            result = service.fetch_comments(post_url, max_comments=batch_size + comment_count)
 
-            if comments and comments != "No comments available":
-                comment_list = comments.split('\n\n')
-                new_comments = comment_list[comment_count:]
+            if not result.ok:
+                print(f" could not fetch comments: {result.error}")
+                break
 
-                if new_comments:
-                    all_comments.extend(new_comments)
-                    comment_count = len(all_comments)
-
-                    print(f" got {len(new_comments)} new comments (total num: {comment_count})")
-
-                    for i, comment in enumerate(new_comments[-3:], 1):
-                        print(f" {comment[:400]}...")
-                else:
-                    print(" no comments found.")
-                    break
-            else:
+            if not result.data:
                 print(" no comments there.")
                 break
+
+            new_comments = result.data[comment_count:]
+            if not new_comments:
+                print(" no comments found.")
+                break
+
+            all_comments.extend(new_comments)
+            comment_count = len(all_comments)
+
+            print(f" got {len(new_comments)} new comments (total num: {comment_count})")
+            for comment in new_comments[-3:]:
+                print(f" {comment.format()[:400]}...")
 
             time.sleep(2)
 
     except KeyboardInterrupt:
         print(f"\n fetch interrupted num of comments collected: {len(all_comments)}")
 
-    return '\n\n'.join(all_comments) if all_comments else "no comments available"
+    return '\n\n'.join(comment.format() for comment in all_comments) if all_comments else "no comments available"
 
 
 def analyze_with_llm(title, content):
@@ -564,6 +507,44 @@ def get_stuff():
             print(f"dunno what happened: {e}")
 
 
+def run_reddit_flow(query: str, count: int = 1, service: RedditService = None) -> None:
+    service = service or reddit_service
+
+    print(f"fetching Reddit posts for '{query}'...")
+    result = service.fetch_posts(query, count=count)
+
+    if not result.ok:
+        print(f"Could not fetch Reddit posts: {result.error}")
+        return
+
+    posts = result.data
+    if not posts:
+        print("no posts found")
+        return
+
+    print(f"Found {len(posts)} Reddit posts.")
+    posts = posts[:count]
+    print(f" {len(posts)} reddit posts:")
+
+    for i, post in enumerate(posts, 1):
+        print(f"\n🔹 [{i}] {post.title}")
+        print(f"🔗 {post.link}")
+
+        content = extract_reddit_content(post)
+        print(f"\n post preview:\n{content[:500]}...\n")
+
+        print("\n  comments fetching...")
+        all_comments = fetch_comments_continuously(post.link, service=service)
+
+        combined_content = f" CONTENT:\n{content}\n\nCOMMENTS:\n{all_comments}"
+
+        print(f"\n analysis of post and comments...")
+        analysis = analyze_reddit_discussion(post.title, combined_content)
+        print(f"\n  Analysis:\n{analysis}\n")
+
+        print("------------------------------\n")
+
+
 def main():
     print("Select content type to scrape and summarize:")
     print("1. Business  ")
@@ -595,44 +576,8 @@ def main():
         get_stuff()
         return
     elif choice == "6":
-        get_reddit_posts_query = input("Enter the topic you want to search on Reddit: ")
-        print(f"fetching Reddit posts for '{get_reddit_posts_query}'...")
-        articles = get_reddit_posts(get_reddit_posts_query, count=1)
-        extract_func = extract_reddit_content
-
-        if not articles:
-            print("no posted found ")
-            return
-
-        print(f"Found {len(articles)} Reddit posts.")
-        if len(articles) < 1:
-            print("limited postes avaliable")
-            count = len(articles)
-        else:
-            count = 1
-
-        articles = articles[:count]
-        print(f" {count} reddit posts:")
-
-        for i in range(count):
-            print(f"\n🔹 [{i + 1}] {articles[i]['title']}")
-            print(f"🔗 {articles[i]['link']}")
-
-            content = extract_func(articles[i])
-
-            print(f"\n post preview:\n{content[:500]}...\n")
-
-            print("\n  comments fetching...")
-            all_comments = fetch_comments_continuously(articles[i]['link'])
-
-            combined_content = f" CONTENT:\n{content}\n\nCOMMENTS:\n{all_comments}"
-
-            print(f"\n analysis of post and comments...")
-            analysis = analyze_reddit_discussion(articles[i]["title"], combined_content)
-            print(f"\n  Analysis:\n{analysis}\n")
-
-            print("------------------------------\n")
-
+        query = input("Enter the topic you want to search on Reddit: ")
+        run_reddit_flow(query, count=1)
         return
 
     else:
