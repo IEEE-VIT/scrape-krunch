@@ -5,6 +5,14 @@ from ollama import chat, ChatResponse
 import time
 from duckduckgo_search import DDGS as ddgs
 from article_cache import ArticleCache
+import re
+
+def clean_text(text):
+    """Clean extracted article text for consistent LLM input."""
+    text = text.replace("\xa0", " ")
+    text = re.sub(r"[\t\r\n]+", " ", text)
+    text = re.sub(r" {2,}", " ", text)
+    return text.strip()
 
 article_cache = ArticleCache()
 
@@ -649,6 +657,7 @@ def main():
         print(f"🔗 {article['link']}")
 
         content = extract_func(article["link"])
+        content = clean_text(content)
 
         print(f"\n preview:\n{content[:1000]}...\n")
 
