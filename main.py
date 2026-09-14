@@ -1,4 +1,7 @@
+import asyncio
 import logging
+from concurrent.futures import ThreadPoolExecutor
+
 from robots_client import scrape_get
 from bs4 import BeautifulSoup
 from ollama import chat, ChatResponse
@@ -170,6 +173,24 @@ def extract_article_content(url):
 
     except Exception as e:
         return f"Error extracting content: {e}"
+
+
+async def extract_articles_content(articles, extract_func):
+    """Extract a batch in input order, with at most three requests in flight."""
+    semaphore = asyncio.Semaphore(3)
+    loop = asyncio.get_running_loop()
+
+    with ThreadPoolExecutor(max_workers=3) as executor:
+        async def extract_one(article):
+            async with semaphore:
+                try:
+                    return await loop.run_in_executor(
+                        executor, extract_func, article["link"]
+                    )
+                except Exception as exc:
+                    return f"Error extracting content: {exc}"
+
+        return await asyncio.gather(*(extract_one(article) for article in articles))
 
 
 def get_tech_articles(count=3):
@@ -670,12 +691,16 @@ def main():
         print("No articles found.")
         return
 
-    for i, article in enumerate(articles, 1):
+    contents = asyncio.run(extract_articles_content(articles, extract_func))
+
+    for i, (article, content) in enumerate(zip(articles, contents), 1):
         print(f"\n🔹 [{i}] {article['title']}")
         print(f"🔗 {article['link']}")
 
-        content = extract_func(article["link"])
         if not content:
+            continue
+        if content.startswith("Error"):
+            print(f"Skipping failed article: {content}")
             continue
 
         print(f"\n preview:\n{content[:1000]}...\n")

@@ -20,7 +20,8 @@ This project scrapes the latest news articles from various domains like **Busine
   - Socio-economic, political & stock market impact evaluation
 
 - ⚙️ Clean command-line interface for selecting the type of news  
-- ⏱️ Supports rate limiting with `time.sleep()`  
+- ⏱️ Fetches business, technology, sports, and health article content concurrently using `asyncio` and `ThreadPoolExecutor`, with `asyncio.Semaphore(3)` limiting extraction to three requests at a time.
+- 🔗 Keeps batch results in article order; failed requests are reported and skipped without stopping other articles. Each article request uses a 10-second timeout and checks HTTP status.  
 - 🔗 Extracts full article content when possible  
 
 ## 🧠 LLM Prompt

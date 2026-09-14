@@ -86,7 +86,16 @@ Modules and Functions:
         4. Health News
         5. Defense (idrw.org)
         6. Reddit Discussion
-    - Extracts, displays preview, sends to LLM, shows analysis.
+    - Fetches article content in a concurrent batch, then displays previews and analyzes successful results in input order.
+    - Reports failed article fetches and skips their LLM analysis while continuing the batch.
+
+20. extract_articles_content(articles, extract_func)
+    - Async batch helper for business, technology, sports, and health article extraction.
+    - Runs existing synchronous extractors in ThreadPoolExecutor(max_workers=3).
+    - Uses asyncio.Semaphore(3) to limit simultaneous extractions and asyncio.gather to preserve input order.
+    - Returns one content or error string per article; an individual failure does not terminate the batch.
+    - Article extractors use a 10-second request timeout and check HTTP status.
+    - asyncio and concurrent.futures are part of Python; no new dependencies are required.
 
 ---
 
