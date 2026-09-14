@@ -4,10 +4,14 @@ from ollama import chat, ChatResponse
 import time
 from duckduckgo_search import DDGS as ddgs
 from article_cache import ArticleCache
+from robots_checker import RobotsComplianceChecker
 
 #CACHE_LIMIT = 5
 #max size set to low number for testing needs below, else, default is set at 50
 article_cache = ArticleCache("""max_size = CACHE_LIMIT""")
+
+# Single shared checker so crawl-delay timing is tracked per-host across the whole run.
+robots_checker = RobotsComplianceChecker(user_agent="scrape-krunch-bot")
 
 
 def search_duckduckgo(query, max_results=10):
@@ -30,7 +34,7 @@ def get_article_links(count=3):
                 if article_cache.is_article_processed(url, result['title']):
                     print(f"Skipping previously processed article: {result['title']}")
                     continue
-                    
+
                 if any(source in url.lower() for source in
                        ['reuters', 'bloomberg', 'wsj', 'marketwatch', 'cnbc', 'yahoo', 'finance']):
                     articles.append({
@@ -73,6 +77,9 @@ def get_bbc_business_articles(count=3):
     url = "https://www.bbc.com/business"
     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
 
+    if not robots_checker.check_and_wait(url):
+        return [{"title": "Blocked by robots.txt", "link": ""}]
+
     try:
         response = requests.get(url, headers=headers, timeout=10)
         soup = BeautifulSoup(response.text, "html.parser")
@@ -88,11 +95,11 @@ def get_bbc_business_articles(count=3):
 
                 if title and len(title) > 10:
                     full_url = href if href.startswith("http") else f"https://www.bbc.com{href}"
-                    
+
                     if article_cache.is_article_processed(full_url, title):
                         print(f"Skipping previously processed article: {title}")
                         continue
-                        
+
                     articles.append({"title": title, "link": full_url})
                     article_cache.add_article(full_url, title)
 
@@ -108,6 +115,9 @@ def get_bbc_business_articles(count=3):
 
 def extract_article_content(url):
     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+
+    if not robots_checker.check_and_wait(url):
+        return "Skipped: disallowed by robots.txt."
 
     try:
         response = requests.get(url, headers=headers, timeout=10)
@@ -145,6 +155,10 @@ def extract_article_content(url):
 def get_tech_articles(count=3):
     url = "https://techcrunch.com/latest/"
     headers = {"User-Agent": "Mozilla/5.0"}
+
+    if not robots_checker.check_and_wait(url):
+        return []
+
     response = requests.get(url, headers=headers)
     soup = BeautifulSoup(response.text, "html.parser")
 
@@ -154,11 +168,11 @@ def get_tech_articles(count=3):
     for link in article_links:
         title = link.get_text(strip=True)
         href = link["href"]
-        
+
         if article_cache.is_article_processed(href, title):
             print(f"Skipping previously processed article: {title}")
             continue
-            
+
         articles.append({"title": title, "link": href})
         article_cache.add_article(href, title)
         if len(articles) >= count:
@@ -168,6 +182,10 @@ def get_tech_articles(count=3):
 
 def extract_tech_content(url):
     headers = {"User-Agent": "Mozilla/5.0"}
+
+    if not robots_checker.check_and_wait(url):
+        return "Skipped: disallowed by robots.txt."
+
     try:
         response = requests.get(url, headers=headers, timeout=10)
         soup = BeautifulSoup(response.text, "html.parser")
@@ -190,6 +208,10 @@ def extract_tech_content(url):
 def get_sports_articles(count=3):
     url = "https://www.espn.com/sports/"
     headers = {"User-Agent": "Mozilla/5.0"}
+
+    if not robots_checker.check_and_wait(url):
+        return []
+
     response = requests.get(url, headers=headers)
     soup = BeautifulSoup(response.text, "html.parser")
 
@@ -202,11 +224,11 @@ def get_sports_articles(count=3):
         if title_elem and "/story/" in href:
             title = title_elem.get_text(strip=True)
             full_url = href if href.startswith("http") else "https://www.espn.com" + href
-            
+
             if article_cache.is_article_processed(full_url, title):
                 print(f"Skipping previously processed article: {title}")
                 continue
-                
+
             articles.append({"title": title, "link": full_url})
             article_cache.add_article(full_url, title)
             if len(articles) >= count:
@@ -216,6 +238,10 @@ def get_sports_articles(count=3):
 
 def extract_sports_content(url):
     headers = {"User-Agent": "Mozilla/5.0"}
+
+    if not robots_checker.check_and_wait(url):
+        return "Skipped: disallowed by robots.txt."
+
     try:
         response = requests.get(url, headers=headers, timeout=10)
         soup = BeautifulSoup(response.text, "html.parser")
@@ -236,6 +262,10 @@ def extract_sports_content(url):
 def get_health_articles(count=3):
     url = "https://www.healthline.com/health-news"
     headers = {"User-Agent": "Mozilla/5.0"}
+
+    if not robots_checker.check_and_wait(url):
+        return []
+
     response = requests.get(url, headers=headers)
     soup = BeautifulSoup(response.text, "html.parser")
 
@@ -248,11 +278,11 @@ def get_health_articles(count=3):
         if title_elem and "/health-news/" in href:
             title = title_elem.get_text(strip=True)
             full_url = href if href.startswith("http") else "https://www.healthline.com" + href
-            
+
             if article_cache.is_article_processed(full_url, title):
                 print(f"Skipping previously processed article: {title}")
                 continue
-                
+
             articles.append({"title": title, "link": full_url})
             article_cache.add_article(full_url, title)
             if len(articles) >= count:
@@ -262,6 +292,10 @@ def get_health_articles(count=3):
 
 def extract_health_content(url):
     headers = {"User-Agent": "Mozilla/5.0"}
+
+    if not robots_checker.check_and_wait(url):
+        return "Skipped: disallowed by robots.txt."
+
     try:
         response = requests.get(url, headers=headers, timeout=10)
         soup = BeautifulSoup(response.text, "html.parser")
@@ -282,6 +316,10 @@ def extract_health_content(url):
 def get_entertainment_articles(count=3):
     url = "https://variety.com/latest/"
     headers = {"User-Agent": "Mozilla/5.0"}
+
+    if not robots_checker.check_and_wait(url):
+        return []
+
     response = requests.get(url, headers=headers)
     soup = BeautifulSoup(response.text, "html.parser")
 
@@ -293,11 +331,11 @@ def get_entertainment_articles(count=3):
         title_elem = link.find("h3") or link.find("h2")
         if title_elem and "variety.com" in href and "/news/" in href:
             title = title_elem.get_text(strip=True)
-            
+
             if article_cache.is_article_processed(href, title):
                 print(f"Skipping previously processed article: {title}")
                 continue
-                
+
             articles.append({"title": title, "link": href})
             article_cache.add_article(href, title)
             if len(articles) >= count:
@@ -308,7 +346,12 @@ def get_entertainment_articles(count=3):
 def get_stuff():
     processed_articles = set()
 
-    html = requests.get("https://idrw.org/")
+    url = "https://idrw.org/"
+    if not robots_checker.check_and_wait(url):
+        print(f"[robots.txt] Skipping {url} (disallowed).")
+        return
+
+    html = requests.get(url)
     soup = BeautifulSoup(html.text, "html.parser")
     articles = soup.find_all("article")
 
@@ -327,25 +370,40 @@ def get_stuff():
         print(f"\nScraped heading {i + 1}: {heading_text}")
         print(f"Scraped content: {article_text}\n")
 
-    for i, article in enumerate(articles):
-        heading = article.find("h2")
-        if not heading:
-            continue
+        next_para = heading.find_next("p")
+        if next_para:
+            print(f"Preview of next: {next_para.text.strip()}")
+        else:
+            print("End reached.")
 
-        heading_text = heading.text.strip()
-        article_text = article.text.strip()
+        try:
+            response: ChatResponse = chat(model='llama3.2', messages=[
+                {
+                    'role': 'system',
+                    'content': """summarize the defence article and provide
+                     insights on its impact on the present state of global politics
+                     and any future impacts it can have on INDIA
+        """,
+                },
+                {
+                    'role': 'user',
+                    'content': f"Here is the news article:\n\n{article_text}",
+                },
+            ])
 
-        if heading_text in processed_articles:
-            continue
-        processed_articles.add(heading_text)
-
-        print(f"\nScraped heading {i + 1}: {heading_text}")
-        print(f"Scraped content: {article_text}\n")
+            print("\n--- LLM Response ---\n")
+            print(response.message.content)
+            print("\n--------------------\n")
+        except Exception as e:
+            print(f"dunno what happened: {e}")
 
 
 def get_reddit_posts(query, count=7):
     search_url = f"https://www.reddit.com/search.json?q={query}&sort=hot&limit={count}"
     headers = {"User-Agent": "Mozilla/5.0"}
+
+    if not robots_checker.check_and_wait(search_url):
+        return [{"title": "Blocked by robots.txt", "link": "", "content": "", "score": 0}]
 
     try:
         response = requests.get(search_url, headers=headers)
@@ -382,8 +440,15 @@ def extract_reddit_content(post):
 def get_reddit_comments(post_url, max_comments=50):
     headers = {"User-Agent": "Mozilla/5.0"}
 
+    if not post_url:
+        return "No comments available"
+
+    json_url = post_url.rstrip('/') + '.json'
+
+    if not robots_checker.check_and_wait(json_url):
+        return "Skipped: disallowed by robots.txt."
+
     try:
-        json_url = post_url.rstrip('/') + '.json'
         response = requests.get(json_url, headers=headers)
         data = response.json()
 
@@ -497,56 +562,6 @@ Be concise but thorough, focusing on the most interesting and relevant aspects o
         return response.message.content
     except Exception as e:
         return f"Analysis Error: {e}"
-
-
-def get_stuff():
-    processed_articles = set()
-
-    html = requests.get("https://idrw.org/")
-    soup = BeautifulSoup(html.text, "html.parser")
-    articles = soup.find_all("article")
-
-    for i, article in enumerate(articles):
-        heading = article.find("h2")
-        if not heading:
-            continue
-
-        heading_text = heading.text.strip()
-        article_text = article.text.strip()
-
-        if heading_text in processed_articles:
-            continue
-        processed_articles.add(heading_text)
-
-        print(f"\nScraped heading {i + 1}: {heading_text}")
-        print(f"Scraped content: {article_text}\n")
-
-        next_para = heading.find_next("p")
-        if next_para:
-            print(f"Preview of next: {next_para.text.strip()}")
-        else:
-            print("End reached.")
-
-        try:
-            response: ChatResponse = chat(model='llama3.2', messages=[
-                {
-                    'role': 'system',
-                    'content': """summarize the defence article and provide
-                     insights on its impact on the present state of global politics
-                     and any future impacts it can have on INDIA
-        """,
-                },
-                {
-                    'role': 'user',
-                    'content': f"Here is the news article:\n\n{article_text}",
-                },
-            ])
-
-            print("\n--- LLM Response ---\n")
-            print(response.message.content)
-            print("\n--------------------\n")
-        except Exception as e:
-            print(f"dunno what happened: {e}")
 
 
 def main():
