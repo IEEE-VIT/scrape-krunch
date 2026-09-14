@@ -2,6 +2,7 @@ import requests
 from bs4 import BeautifulSoup
 from ollama import chat, ChatResponse
 import time
+import re
 from duckduckgo_search import DDGS as ddgs
 from article_cache import ArticleCache
 
@@ -9,7 +10,17 @@ from article_cache import ArticleCache
 #max size set to low number for testing needs below, else, default is set at 50
 article_cache = ArticleCache("""max_size = CACHE_LIMIT""")
 
+def clean_text(text):
+    """Normalize whitespace in scraped article text."""
+    if not text:
+        return ""
 
+    text = text.replace("\xa0", " ")
+    text = re.sub(r"[\t\r\n]+", " ", text)
+    text = re.sub(r" {2,}", " ", text)
+
+    return text.strip()
+    
 def search_duckduckgo(query, max_results=10):
     with ddgs() as ddgs_instance:
         reddit_results = list(ddgs_instance.text(keywords=query, max_results=max_results))
@@ -119,7 +130,8 @@ def extract_article_content(url):
             if article_div:
                 paragraphs = article_div.find_all("p")
                 content = "\n".join(p.get_text(strip=True) for p in paragraphs)
-                return content.strip() if content else "Empty article body."
+                content = clean_text(content)
+                return content if content else "Empty article body."
 
         elif "bbc.com" in url:
             article_div = soup.find("div", {"data-component": "text-block"}) or soup.find("div", class_="story-body")
@@ -129,12 +141,14 @@ def extract_article_content(url):
             if article_div:
                 paragraphs = article_div.find_all("p")
                 content = "\n".join(p.get_text(strip=True) for p in paragraphs)
-                return content.strip() if content else "Empty article body."
+                content = clean_text(content)
+                return content if content else "Empty article body."
 
         paragraphs = soup.find_all("p")
         if paragraphs:
             content = "\n".join(p.get_text(strip=True) for p in paragraphs[:10])  # First 10 paragraphs
-            return content.strip() if content else "Could not extract content."
+            content = clean_text(content)
+            return content if content else "Could not extract content."
 
         return "Article content div not found."
 
@@ -179,7 +193,8 @@ def extract_tech_content(url):
         if article_div:
             paragraphs = article_div.find_all("p")
             content = "\n".join(p.get_text(strip=True) for p in paragraphs)
-            return content.strip() if content else "Empty content."
+            content = clean_text(content)
+            return content if content else "Empty content."
         else:
             return "Content div not found."
 
@@ -225,7 +240,8 @@ def extract_sports_content(url):
         if article_div:
             paragraphs = article_div.find_all("p")
             content = "\n".join(p.get_text(strip=True) for p in paragraphs)
-            return content.strip() if content else "Empty content."
+            content = clean_text(content)
+            return content if content else "Empty content."
         else:
             return "Content div not found."
 
@@ -271,7 +287,8 @@ def extract_health_content(url):
         if article_div:
             paragraphs = article_div.find_all("p")
             content = "\n".join(p.get_text(strip=True) for p in paragraphs)
-            return content.strip() if content else "Empty content."
+            content = clean_text(content)
+            return content if content else "Empty content."
         else:
             return "Content div not found."
 
@@ -446,6 +463,8 @@ def fetch_comments_continuously(post_url):
 
 
 def analyze_with_llm(title, content):
+    title = clean_text(title)
+    content = clean_text(content)
     if content.startswith("Error :") or len(content.split()) < 30:
         return "low content. skipping"
     try:
@@ -470,9 +489,10 @@ def analyze_with_llm(title, content):
 
 
 def analyze_reddit_discussion(title, combined_content):
+    title = clean_text(title)
+    combined_content = clean_text(combined_content)
     if combined_content.startswith("Error :") or len(combined_content.split()) < 50:
         return "Insufficient content for analysis. Skipping."
-
     try:
         response: ChatResponse = chat(model='llama3.2', messages=[
             {
@@ -512,7 +532,7 @@ def get_stuff():
             continue
 
         heading_text = heading.text.strip()
-        article_text = article.text.strip()
+        article_text = clean_text(article.text)
 
         if heading_text in processed_articles:
             continue
