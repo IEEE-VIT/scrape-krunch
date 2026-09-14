@@ -1,0 +1,26 @@
+{
+    "urls": [
+        "https://economictimes.indiatimes.com/archive/year-2025.cms",
+        "https://timesofindia.indiatimes.com/business",
+        "https://economictimes.indiatimes.com/"
+    ],
+    "title_hashes": [
+        "a29f5f82a5aaba9e7cb668df346c1267",
+        "10749e59f3194460cb1afad8e54b5a7f",
+        "f62429b706e94c679b129994b8e162ee"
+    ],
+    "order": [
+        [
+            "https://economictimes.indiatimes.com/",
+            "a29f5f82a5aaba9e7cb668df346c1267"
+        ],
+        [
+            "https://economictimes.indiatimes.com/archive/year-2025.cms",
+            "f62429b706e94c679b129994b8e162ee"
+        ],
+        [
+            "https://timesofindia.indiatimes.com/business",
+            "10749e59f3194460cb1afad8e54b5a7f"
+        ]
+    ]
+}
