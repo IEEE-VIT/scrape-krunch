@@ -88,6 +88,14 @@ Modules and Functions:
         6. Reddit Discussion
     - Extracts, displays preview, sends to LLM, shows analysis.
 
+20. RobotsService (robots_service.py)
+    - Manages dynamic robots.txt compliance and automatic crawl-delay enforcement.
+    - Caches parsed RobotFileParser instances per host in-memory with configurable TTL (default 1 hour).
+    - Checks path permissions before scraping (is_allowed).
+    - Detects and automatically sleeps to honor Crawl-delay directives between sequential requests to the same host (enforce_crawl_delay).
+    - Gracefully skips disallowed paths with informational logging.
+    - Built using standard library urllib.robotparser for zero external dependency overhead.
+
 ---
 
 Requirements:

@@ -6,9 +6,11 @@ import time
 from duckduckgo_search import DDGS as ddgs
 from article_cache import ArticleCache
 from reddit_service import RedditService, extract_reddit_content
+from robots_service import RobotsService
 
 article_cache = ArticleCache()
 reddit_service = RedditService()
+robots_service = RobotsService()
 
 FALLBACK_CONTAINER_SELECTORS = [
     ("article", {}),
@@ -128,6 +130,10 @@ def get_bbc_business_articles(count=3):
                 if title and len(title) > 10:
                     full_url = href if href.startswith("http") else f"https://www.bbc.com{href}"
                     
+                    if not robots_service.is_allowed(full_url):
+                        print(f"Skipping article disallowed by robots.txt: {full_url}")
+                        continue
+
                     if article_cache.is_article_processed(full_url, title):
                         print(f"Skipping previously processed article: {title}")
                         continue
@@ -146,6 +152,10 @@ def get_bbc_business_articles(count=3):
 
 
 def extract_article_content(url):
+    if not robots_service.can_fetch_and_wait(url):
+        print(f"Skipping extraction for {url}: Disallowed by robots.txt")
+        return "Error: URL disallowed by robots.txt"
+
     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
 
     try:
@@ -183,6 +193,10 @@ def get_tech_articles(count=3):
         title = link.get_text(strip=True)
         href = link["href"]
         
+        if not robots_service.is_allowed(href):
+            print(f"Skipping article disallowed by robots.txt: {href}")
+            continue
+
         if article_cache.is_article_processed(href, title):
             print(f"Skipping previously processed article: {title}")
             continue
@@ -195,6 +209,10 @@ def get_tech_articles(count=3):
 
 
 def extract_tech_content(url):
+    if not robots_service.can_fetch_and_wait(url):
+        print(f"Skipping extraction for {url}: Disallowed by robots.txt")
+        return "Error: URL disallowed by robots.txt"
+
     headers = {"User-Agent": "Mozilla/5.0"}
     try:
         response = requests.get(url, headers=headers, timeout=10)
@@ -226,6 +244,10 @@ def get_sports_articles(count=3):
             title = title_elem.get_text(strip=True)
             full_url = href if href.startswith("http") else "https://www.espn.com" + href
             
+            if not robots_service.is_allowed(full_url):
+                print(f"Skipping article disallowed by robots.txt: {full_url}")
+                continue
+
             if article_cache.is_article_processed(full_url, title):
                 print(f"Skipping previously processed article: {title}")
                 continue
@@ -238,6 +260,10 @@ def get_sports_articles(count=3):
 
 
 def extract_sports_content(url):
+    if not robots_service.can_fetch_and_wait(url):
+        print(f"Skipping extraction for {url}: Disallowed by robots.txt")
+        return "Error: URL disallowed by robots.txt"
+
     headers = {"User-Agent": "Mozilla/5.0"}
     try:
         response = requests.get(url, headers=headers, timeout=10)
@@ -269,6 +295,10 @@ def get_health_articles(count=3):
             title = title_elem.get_text(strip=True)
             full_url = href if href.startswith("http") else "https://www.healthline.com" + href
             
+            if not robots_service.is_allowed(full_url):
+                print(f"Skipping article disallowed by robots.txt: {full_url}")
+                continue
+
             if article_cache.is_article_processed(full_url, title):
                 print(f"Skipping previously processed article: {title}")
                 continue
@@ -281,6 +311,10 @@ def get_health_articles(count=3):
 
 
 def extract_health_content(url):
+    if not robots_service.can_fetch_and_wait(url):
+        print(f"Skipping extraction for {url}: Disallowed by robots.txt")
+        return "Error: URL disallowed by robots.txt"
+
     headers = {"User-Agent": "Mozilla/5.0"}
     try:
         response = requests.get(url, headers=headers, timeout=10)
@@ -311,6 +345,10 @@ def get_entertainment_articles(count=3):
         if title_elem and "variety.com" in href and "/news/" in href:
             title = title_elem.get_text(strip=True)
             
+            if not robots_service.is_allowed(href):
+                print(f"Skipping article disallowed by robots.txt: {href}")
+                continue
+
             if article_cache.is_article_processed(href, title):
                 print(f"Skipping previously processed article: {title}")
                 continue
@@ -323,9 +361,14 @@ def get_entertainment_articles(count=3):
 
 
 def get_stuff():
+    url = "https://idrw.org/"
+    if not robots_service.can_fetch_and_wait(url):
+        print(f"Skipping {url}: Disallowed by robots.txt")
+        return
+
     processed_articles = set()
 
-    html = requests.get("https://idrw.org/")
+    html = requests.get(url)
     soup = BeautifulSoup(html.text, "html.parser")
     articles = soup.find_all("article")
 
@@ -458,9 +501,14 @@ Be concise but thorough, focusing on the most interesting and relevant aspects o
 
 
 def get_stuff():
+    url = "https://idrw.org/"
+    if not robots_service.can_fetch_and_wait(url):
+        print(f"Skipping {url}: Disallowed by robots.txt")
+        return
+
     processed_articles = set()
 
-    html = requests.get("https://idrw.org/")
+    html = requests.get(url)
     soup = BeautifulSoup(html.text, "html.parser")
     articles = soup.find_all("article")
 
